@@ -10,6 +10,11 @@ from matplotlib.backends.backend_agg import RendererAgg
 from datetime import date
   
 
+#Loading the data
+@st.cache
+def get_data_classification():
+    df = pd.read_csv(os.path.join(os.getcwd(), 'data', 'heart_statlog.csv'))
+    return df
 
 #def app():
     #configuration of the page
@@ -20,6 +25,7 @@ _lock = RendererAgg.lock
 SPACER = .2
 ROW = 1
 
+df_classification = get_data_classification()
 
 # Sidebar 
 #selection box for the different features
@@ -28,3 +34,7 @@ st.sidebar.header('Select what to display')
 title_spacer1, title, title_spacer_2 = st.beta_columns((.1,ROW,.1))
 with title:
     st.title('Welcome to the machine learning exploratory tool')
+
+st.write(df_classification)
+
+st.write(df_classification.corr())
