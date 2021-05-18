@@ -30,12 +30,27 @@ df_classification = get_data_classification()
 
 # Sidebar 
 #selection box for the different features
-st.sidebar.header('Select what to display')
+st.sidebar.header('Preprocessing')
+
+classifier_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'], 
+                                            help='Scaling data can improve the performance of ML algorithms.')
+
+
+st.sidebar.header('Model selection')
 classifier_list = ['Logistic regression', 'Support vector', 'Kernel support', 'K neirest neighbors', 'Naive bayes', 'Decision tree', 'Random forest']
+classifier_selected = st.sidebar.selectbox('Select regression algorithm', classifier_list)
 
 title_spacer1, title, title_spacer_2 = st.beta_columns((.1,ROW,.1))
 with title:
     st.title('Classification exploratory tool')
+    st.markdown("""
+            This app allows you to test different machine learning algorithms and combinations of hyperparameters 
+            to classify patients with risk of developping heart diseases!
+            The dataset is composed of medical observation of patients and their risk of developping heart diseases
+            * Use the menu on the left to select ML algorithm and hyperparameters
+            * Data source (accessed mid may 2021): [heart disease dataset](https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive).
+            * The code can be accessed at [code](https://github.com/max-lutz/ML-exploration-tool).
+            """)
 
 st.write(df_classification)
 
