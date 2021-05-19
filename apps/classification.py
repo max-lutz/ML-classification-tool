@@ -63,9 +63,9 @@ def get_encoding(encoder):
     if encoder == 'None':
         return 'drop'
     if encoder == 'Ordinal encoder':
-        return OrdinalEncoder()
+        return OrdinalEncoder(handle_unknown='use_encoded_value')
     if encoder == 'OneHotEncoder':
-        return OneHotEncoder()
+        return OneHotEncoder(handle_unknown='ignore')
 
 def get_scaling(scaler):
     if scaler == 'None':
@@ -77,15 +77,25 @@ def get_scaling(scaler):
     if scaler == 'Robust scaler':
         return RobustScaler()
 
-def get_ml_algorithm(algorithm, hyperparameters):
+def get_ml_algorithm(algorithm, hyperparameters=None):
     if algorithm == 'Logistic regression':
-        return 
+        return LogisticRegression()
+    if algorithm == 'Support vector':
+        return SVC()
+    if algorithm == 'Naive bayes':
+        return GaussianNB()
+    if algorithm == 'K nearest neighbors':
+        return KNeighborsClassifier()
+    if algorithm == 'Ridge classifier':
+        return RidgeClassifier()
+    if algorithm == 'Decision tree':
+        return DecisionTreeClassifier()
+    if algorithm == 'Random forest':
+        return RandomForestClassifier()
 
 #def app():
     #configuration of the page
 st.set_page_config(layout="wide")
-matplotlib.use("agg")
-_lock = RendererAgg.lock
 
 SPACER = .2
 ROW = 1
@@ -101,7 +111,7 @@ cat_cols = ['resting ecg', 'exercise angina', 'ST slope', 'chest pain type', 'se
 # Sidebar 
 #selection box for the different features
 st.sidebar.header('Preprocessing')
-encoder_selected = st.sidebar.selectbox('Encoding', ['None', 'Ordinal encoder', 'OneHotEncoder'], 
+encoder_selected = st.sidebar.selectbox('Encoding', ['None', 'OneHotEncoder'], 
                                             help='Encoding allow ML algorithms to understand categorical features.')
 
 scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'], 
@@ -112,10 +122,12 @@ nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
 rdm_state = st.sidebar.slider('Random state', min_value=0, max_value=42)
 
 st.sidebar.header('Model selection')
-classifier_list = ['Logistic regression', 'Support vector', 'Kernel support', 'K nearest neighbors', 'Naive bayes', 'Decision tree', 'Random forest']
+classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors', 'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest']
 classifier_selected = st.sidebar.selectbox('', classifier_list)
 
 st.sidebar.header('Hyperparameters selection')
+hyperparameters = {}
+
 
 title_spacer1, title, title_spacer_2 = st.beta_columns((.1,ROW,.1))
 with title:
@@ -141,8 +153,10 @@ folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
 
 pipeline = Pipeline([
     ('preprocessing' , preprocessing),
-    ('ml', )
+    ('ml', get_ml_algorithm(classifier_selected))
 ])
+
+cv_score = cross_val_score(pipeline, X, Y, cv=folds)
 
 st.write(X)
 
@@ -151,6 +165,8 @@ preprocessing.fit(X)
 X_preprocessed = preprocessing.transform(X)
 
 st.write(X_preprocessed)
+
+st.write(cv_score.mean(), cv_score.std())
 
 
 #st.write(df_classification.corr())
