@@ -84,7 +84,7 @@ def get_ml_algorithm(algorithm, hyperparameters):
     if algorithm == 'Logistic regression':
         return LogisticRegression(solver=hyperparameters['solver'])
     if algorithm == 'Support vector':
-        return SVC()
+        return SVC(kernel = hyperparameters['kernel'], C = hyperparameters['C'])
     if algorithm == 'Naive bayes':
         return GaussianNB()
     if algorithm == 'K nearest neighbors':
@@ -94,7 +94,7 @@ def get_ml_algorithm(algorithm, hyperparameters):
     if algorithm == 'Decision tree':
         return DecisionTreeClassifier()
     if algorithm == 'Random forest':
-        return RandomForestClassifier()
+        return RandomForestClassifier(n_estimators = hyperparameters['n_estimators'], criterion = hyperparameters['criterion'], min_samples_split = hyperparameters['min_samples_split'])
 
 
 #def app():
@@ -152,7 +152,16 @@ if(classifier_selected == 'K nearest neighbors'):
     hyperparameters['n_neighbors'] = st.sidebar.slider('Number of neighbors (default value = 5)', 1, 21, 5, 1)
     hyperparameters['metric'] = st.sidebar.selectbox('Metric (default = minkowski)', ['minkowski', 'euclidean', 'manhattan', 'chebyshev'])
     hyperparameters['weights'] = st.sidebar.selectbox('Weights (default = uniform)', ['uniform', 'distance'])
-    
+
+if(classifier_selected == 'Support vector'):
+    hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'linear', 'poly', 'sigmoid'])
+    hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
+
+if(classifier_selected == 'Random forest'):
+    hyperparameters['n_estimators'] = st.sidebar.slider('Number of estimators (default = 100)', 10, 500, 100, 10)
+    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
+    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1, help='The minimum number of samples required to split an internal node.')
+
 
 title_spacer1, title, title_spacer_2 = st.beta_columns((.1,ROW,.1))
 with title:
