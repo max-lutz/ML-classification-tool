@@ -88,13 +88,14 @@ def get_ml_algorithm(algorithm, hyperparameters):
     if algorithm == 'Naive bayes':
         return GaussianNB()
     if algorithm == 'K nearest neighbors':
-        return KNeighborsClassifier()
+        return KNeighborsClassifier(n_neighbors = hyperparameters['n_neighbors'], metric = hyperparameters['metric'], weights = hyperparameters['weights'])
     if algorithm == 'Ridge classifier':
-        return RidgeClassifier()
+        return RidgeClassifier(alpha=hyperparameters['alpha'], solver=hyperparameters['solver'])
     if algorithm == 'Decision tree':
         return DecisionTreeClassifier()
     if algorithm == 'Random forest':
         return RandomForestClassifier()
+
 
 #def app():
     #configuration of the page
@@ -135,15 +136,23 @@ hyperparameters = {}
 
 if(classifier_selected == 'Logistic regression'):
     hyperparameters['solver'] = st.sidebar.selectbox('Solver', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
-    # hyperparameters['penalty'] = st.sidebar.selectbox('Penalty', ['none', 'l1', 'l2', 'elasticnet'])
-    # hyperparameters['C'] = st.sidebar.selectbox('C', [100, 10, 1, 0.1, 0.01])
+    if (hyperparameters['solver'] == 'liblinear'):
+        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2'])
+    if (hyperparameters['solver'] == 'saga'):
+        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2', 'elasticnet'])
+    else:
+        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l2'])
+    hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
 
-# penalty in [‘none’, ‘l1’, ‘l2’, ‘elasticnet’]
-# Note: not all solvers support all regularization terms.
-
-# The C parameter controls the penality strength, which can also be effective.
-
-# C in [100, 10, 1.0, 0.1, 0.01]
+if(classifier_selected == 'Ridge classifier'):
+    hyperparameters['alpha'] = st.sidebar.slider('Alpha (default value = 1.0)', 0.0, 10.0, 1.0, 0.1)
+    hyperparameters['solver'] = st.sidebar.selectbox('Solver (default = auto)', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga'])
+    
+if(classifier_selected == 'K nearest neighbors'):
+    hyperparameters['n_neighbors'] = st.sidebar.slider('Number of neighbors (default value = 5)', 1, 21, 5, 1)
+    hyperparameters['metric'] = st.sidebar.selectbox('Metric (default = minkowski)', ['minkowski', 'euclidean', 'manhattan', 'chebyshev'])
+    hyperparameters['weights'] = st.sidebar.selectbox('Weights (default = uniform)', ['uniform', 'distance'])
+    
 
 title_spacer1, title, title_spacer_2 = st.beta_columns((.1,ROW,.1))
 with title:
@@ -160,32 +169,27 @@ with title:
 with st.beta_expander("Original dataframe"):
     st.write(df_classification)
 
-with st.beta_expander("Pairplot dataframe"), _lock:
-    fig = sns.pairplot(df_classification, hue='target')
-    st.pyplot(fig)
+# with st.beta_expander("Pairplot dataframe"), _lock:
+#     fig = sns.pairplot(df_classification, hue='target')
+#     st.pyplot(fig)
 
-with st.beta_expander("Correlation matrix"):
-    row_spacer3_1, row3_1, row_spacer3_2, row3_2, row_spacer3_3 = st.beta_columns((SPACER, ROW, SPACER, ROW/2, SPACER))
-    # Compute the correlation matrix
-    corr = df_classification.corr()
+# with st.beta_expander("Correlation matrix"):
+#     row_spacer3_1, row3_1, row_spacer3_2, row3_2, row_spacer3_3 = st.beta_columns((SPACER, ROW, SPACER, ROW/2, SPACER))
+#     # Compute the correlation matrix
+#     corr = df_classification.corr()
+#     # Generate a mask for the upper triangle
+#     mask = np.triu(np.ones_like(corr, dtype=bool))
+#     # Set up the matplotlib figure
+#     fig, ax = plt.subplots(figsize=(5, 5))
+#     # Generate a custom diverging colormap
+#     cmap = sns.diverging_palette(230, 20, as_cmap=True)
+#     # Draw the heatmap with the mask and correct aspect ratio
+#     ax = sns.heatmap(corr, mask=mask, cmap=cmap, square=True)
+#     with row3_1, _lock:
+#         st.pyplot(fig)
 
-    # Generate a mask for the upper triangle
-    mask = np.triu(np.ones_like(corr, dtype=bool))
-
-    # Set up the matplotlib figure
-    fig, ax = plt.subplots(figsize=(5, 5))
-
-    # Generate a custom diverging colormap
-    cmap = sns.diverging_palette(230, 20, as_cmap=True)
-
-    # Draw the heatmap with the mask and correct aspect ratio
-    ax = sns.heatmap(corr, mask=mask, cmap=cmap,
-                square=True)
-    with row3_1, _lock:
-        st.pyplot(fig)
-
-    with row3_2, _lock:
-        st.write('Some text explaining the plot')
+#     with row3_2:
+#         st.write('Some text explaining the plot')
 
 preprocessing = make_column_transformer(
     (get_encoding(encoder_selected) , cat_cols),
