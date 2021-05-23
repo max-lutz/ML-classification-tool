@@ -29,6 +29,11 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import RidgeClassifier
+
+from sklearn.decomposition import PCA
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from sklearn.decomposition import KernelPCA
+
   
 
 
@@ -92,7 +97,7 @@ def get_ml_algorithm(algorithm, hyperparameters):
     if algorithm == 'Ridge classifier':
         return RidgeClassifier(alpha=hyperparameters['alpha'], solver=hyperparameters['solver'])
     if algorithm == 'Decision tree':
-        return DecisionTreeClassifier()
+        return DecisionTreeClassifier(criterion = hyperparameters['criterion'], min_samples_split = hyperparameters['min_samples_split'])
     if algorithm == 'Random forest':
         return RandomForestClassifier(n_estimators = hyperparameters['n_estimators'], criterion = hyperparameters['criterion'], min_samples_split = hyperparameters['min_samples_split'])
 
@@ -156,6 +161,11 @@ if(classifier_selected == 'K nearest neighbors'):
 if(classifier_selected == 'Support vector'):
     hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'linear', 'poly', 'sigmoid'])
     hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
+
+if(classifier_selected == 'Decision tree'):
+    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
+    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1, help='The minimum number of samples required to split an internal node.')
+
 
 if(classifier_selected == 'Random forest'):
     hyperparameters['n_estimators'] = st.sidebar.slider('Number of estimators (default = 100)', 10, 500, 100, 10)
