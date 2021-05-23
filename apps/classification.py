@@ -213,6 +213,11 @@ with title:
             * The code can be accessed at [code](https://github.com/max-lutz/ML-exploration-tool).
             """)
 
+uploaded_file = st.file_uploader('File uploader')
+if uploaded_file is not None:
+    dataframe = pd.read_csv(uploaded_file)
+    st.write(dataframe)
+
 with st.beta_expander("Original dataframe"):
     st.write(df_classification)
 
