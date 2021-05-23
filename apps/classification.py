@@ -34,9 +34,6 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import KernelPCA
 
-  
-
-
 #Loading the data
 @st.cache
 def get_data_classification():
@@ -101,6 +98,16 @@ def get_ml_algorithm(algorithm, hyperparameters):
     if algorithm == 'Random forest':
         return RandomForestClassifier(n_estimators = hyperparameters['n_estimators'], criterion = hyperparameters['criterion'], min_samples_split = hyperparameters['min_samples_split'])
 
+def get_dim_reduc_algo(algorithm, hyperparameters):
+    if algorithm == 'None':
+        return 'passthrough'
+    if algorithm == 'PCA':
+        return PCA(n_components = hyperparameters['n_components'])
+    if algorithm == 'LDA':
+        return LDA(solver = hyperparameters['solver'])
+    if algorithm == 'Kernel PCA':
+        return KernelPCA(n_components = hyperparameters['n_components'], kernel = hyperparameters['kernel'])
+    
 
 #def app():
     #configuration of the page
@@ -127,6 +134,28 @@ encoder_selected = st.sidebar.selectbox('Encoding', ['None', 'OneHotEncoder'],
 
 scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'], 
                                             help='Scaling data can improve the performance of ML algorithms.')
+
+preprocessing = make_column_transformer(
+    (get_encoding(encoder_selected) , cat_cols),
+    (get_scaling(scaler_selected) , passthrough_cols)
+)
+dim = preprocessing.fit_transform(X).shape[1]
+if(encoder_selected == 'OneHotEncoder'):
+    dim = dim - 1
+
+st.sidebar.header('Dimension reduction')
+dimension_reduction_alogrithm_selected = st.sidebar.selectbox('Algorithm', ['None', 'PCA', 'LDA', 'Kernel PCA'], 
+                                            help='Algorithm to reduce the dimensionality of the dataset.')
+
+hyperparameters_dim_reduc = {}                                      
+if(dimension_reduction_alogrithm_selected == 'PCA'):
+    hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+if(dimension_reduction_alogrithm_selected == 'LDA'):
+    hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
+if(dimension_reduction_alogrithm_selected == 'Kernel PCA'):
+    hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+    hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox('Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
+    
 
 st.sidebar.header('K fold cross validation selection')
 nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
@@ -165,7 +194,6 @@ if(classifier_selected == 'Support vector'):
 if(classifier_selected == 'Decision tree'):
     hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
     hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1, help='The minimum number of samples required to split an internal node.')
-
 
 if(classifier_selected == 'Random forest'):
     hyperparameters['n_estimators'] = st.sidebar.slider('Number of estimators (default = 100)', 10, 500, 100, 10)
@@ -219,6 +247,7 @@ folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
 
 pipeline = Pipeline([
     ('preprocessing' , preprocessing),
+    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_alogrithm_selected, hyperparameters_dim_reduc)),
     ('ml', get_ml_algorithm(classifier_selected, hyperparameters))
 ])
 
