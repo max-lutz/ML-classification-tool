@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
-import matplotlib
-import matplotlib.pyplot as plt
-import seaborn as sns
-from matplotlib.backends.backend_agg import RendererAgg
+# import matplotlib
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# from matplotlib.backends.backend_agg import RendererAgg
 
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.preprocessing import OneHotEncoder
@@ -100,8 +100,8 @@ def get_ml_algorithm(algorithm, hyperparameters):
 def app():
     #configuration of the page
     #st.set_page_config(layout="wide")
-    matplotlib.use("agg")
-    _lock = RendererAgg.lock
+    # matplotlib.use("agg")
+    # _lock = RendererAgg.lock
 
     SPACER = .2
     ROW = 1
