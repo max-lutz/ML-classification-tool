@@ -61,7 +61,6 @@ def get_data_classification():
     df.loc[df['ST slope'] == 1, 'ST slope'] = 'flat'
     df.loc[df['ST slope'] == 2, 'ST slope'] = 'downslopping'
     df['ST slope'] = df['ST slope'].astype(str)
-
     return df
 
 def get_encoding(encoder):
@@ -118,9 +117,36 @@ _lock = RendererAgg.lock
 SPACER = .2
 ROW = 1
 
-df_classification = get_data_classification()
-X = df_classification.drop(columns = 'target')
-Y = df_classification['target'].values.ravel()
+title_spacer1, title, title_spacer_2 = st.beta_columns((.1,ROW,.1))
+with title:
+    st.title('Classification exploratory tool')
+    st.markdown("""
+            This app allows you to test different machine learning algorithms and combinations of hyperparameters 
+            to classify patients with risk of developping heart diseases!
+            The dataset is composed of medical observation of patients and their risk of developping heart diseases
+            * Use the menu on the left to select ML algorithm and hyperparameters
+            * Data source (accessed mid may 2021): [heart disease dataset](https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive).
+            * The code can be accessed at [code](https://github.com/max-lutz/ML-exploration-tool).
+            """)
+
+
+#dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset'])
+# if(dataset == 'Load my own dataset'):
+#     uploaded_file = st.file_uploader('File uploader')
+#     if uploaded_file is not None:
+#         df = pd.read_csv(uploaded_file)
+# else: 
+
+df = get_data_classification()
+
+st.write(df)
+
+target_selected = 'target'
+# st.sidebar.header('Select feature to predict')
+# target_selected = st.sidebar.selectbox('Predict', df.columns.to_list())
+
+X = df.drop(columns = target_selected)
+Y = df[target_selected].values.ravel()
 
 passthrough_cols = ['age', 'resting bp s', 'cholesterol', 'fasting blood sugar', 'max heart rate', 'oldpeak']
 cat_cols = ['resting ecg', 'exercise angina', 'ST slope', 'chest pain type', 'sex']
@@ -200,35 +226,17 @@ if(classifier_selected == 'Random forest'):
     hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
     hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1, help='The minimum number of samples required to split an internal node.')
 
-
-title_spacer1, title, title_spacer_2 = st.beta_columns((.1,ROW,.1))
-with title:
-    st.title('Classification exploratory tool')
-    st.markdown("""
-            This app allows you to test different machine learning algorithms and combinations of hyperparameters 
-            to classify patients with risk of developping heart diseases!
-            The dataset is composed of medical observation of patients and their risk of developping heart diseases
-            * Use the menu on the left to select ML algorithm and hyperparameters
-            * Data source (accessed mid may 2021): [heart disease dataset](https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive).
-            * The code can be accessed at [code](https://github.com/max-lutz/ML-exploration-tool).
-            """)
-
-uploaded_file = st.file_uploader('File uploader')
-if uploaded_file is not None:
-    dataframe = pd.read_csv(uploaded_file)
-    st.write(dataframe)
-
 with st.beta_expander("Original dataframe"):
-    st.write(df_classification)
+    st.write(df)
 
 # with st.beta_expander("Pairplot dataframe"), _lock:
-#     fig = sns.pairplot(df_classification, hue='target')
+#     fig = sns.pairplot(df, hue='target')
 #     st.pyplot(fig)
 
 # with st.beta_expander("Correlation matrix"):
 #     row_spacer3_1, row3_1, row_spacer3_2, row3_2, row_spacer3_3 = st.beta_columns((SPACER, ROW, SPACER, ROW/2, SPACER))
 #     # Compute the correlation matrix
-#     corr = df_classification.corr()
+#     corr = df.corr()
 #     # Generate a mask for the upper triangle
 #     mask = np.triu(np.ones_like(corr, dtype=bool))
 #     # Set up the matplotlib figure
