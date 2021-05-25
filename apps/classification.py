@@ -117,11 +117,9 @@ def app():
     # Sidebar 
     #selection box for the different features
     st.sidebar.header('Preprocessing')
-    encoder_selected = st.sidebar.selectbox('Encoding', ['None', 'OneHotEncoder'], 
-                                                help='Encoding allow ML algorithms to understand categorical features.')
+    encoder_selected = st.sidebar.selectbox('Encoding', ['None', 'OneHotEncoder'])
 
-    scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'], 
-                                                help='Scaling data can improve the performance of ML algorithms.')
+    scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
 
     st.sidebar.header('K fold cross validation selection')
     nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
@@ -160,7 +158,7 @@ def app():
     if(classifier_selected == 'Random forest'):
         hyperparameters['n_estimators'] = st.sidebar.slider('Number of estimators (default = 100)', 10, 500, 100, 10)
         hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
-        hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1, help='The minimum number of samples required to split an internal node.')
+        hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
 
 
     title_spacer1, title, title_spacer_2 = st.beta_columns((.1,ROW,.1))
