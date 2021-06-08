@@ -139,7 +139,7 @@ def app():
 
     df = get_data_classification()
 
-    st.write(df)
+    #st.write(df)
 
     target_selected = 'target'
     # st.sidebar.header('Select feature to predict')
