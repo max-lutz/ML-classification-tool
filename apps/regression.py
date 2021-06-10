@@ -113,8 +113,16 @@ df = get_data_regression()
 
 #st.write(df)
 target_selected = 'SalePrice'
-# st.sidebar.header('Select feature to predict')
-# target_selected = st.sidebar.selectbox('Predict', df.columns.to_list())
+
+#Sidebar 
+#selection box for the different features
+st.sidebar.header('Preprocessing')
+missing_value_threshold_selected = st.sidebar.slider('Max missing values in feature (%)', 0,100,30,1)
+categorical_missing_value_filler_selected = st.sidebar.selectbox('Handling categorical missing values', ['None'])
+numerical_missing_value_filler_selected = st.sidebar.selectbox('Handling numerical missing values', ['None'])
+
+
+scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
 
 X = df.drop(columns = target_selected)
 Y = df[target_selected].values.ravel()
@@ -128,12 +136,28 @@ with row1_1:
     st.write(df)
 
 with row1_2:
+
+    #feature with missing values
+    drop_cols = []
+    for col in X.columns:
+        st.write('Missing values in column ',col, ' : ', X[col].isna().sum())
+        st.write('Missing values in column ',col, ' : ', X[col].isna().sum()/len(X))
+        if(X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected):
+            drop_cols.append(col)
+        #remove if too many missing values
+
     #number of numerical columns
-    num_cols = [col for col in X.select_dtypes(include='number').columns]
-    for col in num_cols:
-        print('Unique value in column ',col, ' : ',len(X[col].unique()))
+    num_cols_extracted = [col for col in X.select_dtypes(include='number').columns]
+    num_cols = []
+    num_to_cat_cols = []
+    for col in num_cols_extracted:
+        if(len(X[col].unique()) < 25):
+            num_to_cat_cols.append(col)
+        else:
+            num_cols.append(col)
     #st.write(num_cols)
 
+   
     #number of categorical column
     cat_cols = [col for col in X.select_dtypes(include=['object']).columns]
     # for col in cat_cols:
