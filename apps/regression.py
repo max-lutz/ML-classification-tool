@@ -130,6 +130,12 @@ Y = df[target_selected].values.ravel()
 
 df.info()
 
+#display info about the dataset with stats about :
+#   - Size of dataset before and after removing missing data
+#   - % of features with more than % missing data
+#   - % of numerical, categorical, text or date data
+#   - % of rows with more than % missing data
+
 row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.beta_columns((SPACER,ROW,SPACER,ROW, SPACER))
 
 with row1_1:
@@ -137,34 +143,71 @@ with row1_1:
 
 with row1_2:
 
+    number_features = len(X.columns)
+
     #feature with missing values
     drop_cols = []
     for col in X.columns:
-        st.write('Missing values in column ',col, ' : ', X[col].isna().sum())
-        st.write('Missing values in column ',col, ' : ', X[col].isna().sum()/len(X))
+        #put the feature in the drop trable if threshold not respected
         if(X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected):
             drop_cols.append(col)
-        #remove if too many missing values
+    
 
     #number of numerical columns
     num_cols_extracted = [col for col in X.select_dtypes(include='number').columns]
     num_cols = []
-    num_to_cat_cols = []
+    cat_cols = []
     for col in num_cols_extracted:
         if(len(X[col].unique()) < 25):
-            num_to_cat_cols.append(col)
+            cat_cols.append(col)
         else:
             num_cols.append(col)
-    #st.write(num_cols)
-
    
     #number of categorical column
-    cat_cols = [col for col in X.select_dtypes(include=['object']).columns]
-    # for col in cat_cols:
-    #     st.write('Unique value in column ',col, ' : ',len(X[col].unique()))
+    obj_cols = [col for col in X.select_dtypes(include=['object']).columns]
+    text_cols = []
+    for col in obj_cols:
+        if(len(X[col].unique()) < 25):
+            cat_cols.append(col)
+        else:
+            text_cols.append(col)
     
 
     #number of text column
+
+    #remove dropped columns
+    for element in drop_cols:
+        if element in num_cols:
+            num_cols.remove(element)
+        if element in cat_cols:
+            cat_cols.remove(element)
+        if element in text_cols:
+            text_cols.remove(element)
+
+    #check if we miss any column
+    # all_cols = [drop_cols, num_cols, cat_cols, text_cols]
+    # all_cols_set = set()
+    # for list_ in all_cols:
+    #     for col in list_:
+    #         if(col in all_cols_set):
+    #             print('Warning, column ',col,' is duplicate')
+    #         all_cols_set.add(col)
+    # original_cols_set = set(X.columns)
+    # badly_written_cols = all_cols_set - original_cols_set
+    # missing_cols = original_cols_set - all_cols_set
+    # print('Columns badly written :', badly_written_cols)
+    # print('Missing columns :', missing_cols)
+
+    #display info on dataset
+    st.write('Dropping ', round(100*len(drop_cols)/number_features,2), '% of feature for missing values')
+    st.write('Numerical columns : ', round(100*len(num_cols)/number_features,2), '%')
+    st.write('Categorical columns : ', round(100*len(cat_cols)/number_features,2), '%')
+    st.write('Text columns : ', round(100*len(text_cols)/number_features,2), '%')
+
+    st.write('Total : ', round(100*(len(drop_cols)+len(num_cols)+len(cat_cols)+len(text_cols))/number_features,2), '%')
+
+
+
 
 
 
