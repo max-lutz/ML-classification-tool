@@ -13,6 +13,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import RobustScaler
 
+from sklearn.impute import SimpleImputer
+from sklearn.feature_extraction.text import CountVectorizer
+
+from sklearn.preprocessing import FunctionTransformer
+
 from sklearn.pipeline import make_pipeline
 from sklearn.compose import make_column_transformer 
 from sklearn.preprocessing import FunctionTransformer
@@ -41,6 +46,12 @@ def get_data_regression():
 
     df = df.drop(columns=['Id'])
     return df
+
+def get_imputer(imputer):
+    if imputer == 'None':
+        return 'passthrough'
+    if imputer == 'Most frequent value':
+        return SimpleImputer(strategy='most_frequent')
 
 def get_encoding(encoder):
     if encoder == 'None':
@@ -101,12 +112,13 @@ with title:
     st.title('Regression exploratory tool')
     st.markdown("""
             This app allows you to test different machine learning algorithms and combinations of hyperparameters 
-            to classify patients with risk of developping heart diseases!
-            The dataset is composed of medical observation of patients and their risk of developping heart diseases
+            to approximate the value of a house!
+            The dataset is composed of house description and information and their price.
             * Use the menu on the left to select ML algorithm and hyperparameters
-            * Data source (accessed mid may 2021): [heart disease dataset](https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive).
+            * Data source (accessed mid may 2021): [house price dataset](https://www.kaggle.com/c/house-prices-advanced-regression-techniques/data?select=train.csv).
             * The code can be accessed at [code](https://github.com/max-lutz/ML-exploration-tool).
             """)
+    st.write('')
 
 
 df = get_data_regression()
@@ -118,8 +130,8 @@ target_selected = 'SalePrice'
 #selection box for the different features
 st.sidebar.header('Preprocessing')
 missing_value_threshold_selected = st.sidebar.slider('Max missing values in feature (%)', 0,100,30,1)
-categorical_missing_value_filler_selected = st.sidebar.selectbox('Handling categorical missing values', ['None'])
-numerical_missing_value_filler_selected = st.sidebar.selectbox('Handling numerical missing values', ['None'])
+categorical_imputer_selected = st.sidebar.selectbox('Handling categorical missing values', ['None', 'Most frequent value', 'Delete row'])
+numerical_imputer_selected = st.sidebar.selectbox('Handling numerical missing values', ['None', 'Median', 'Mean', 'Delete row'])
 
 
 scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
@@ -142,7 +154,6 @@ with row1_1:
     st.write(df)
 
 with row1_2:
-
     number_features = len(X.columns)
 
     #feature with missing values
@@ -153,7 +164,7 @@ with row1_2:
             drop_cols.append(col)
     
 
-    #number of numerical columns
+    #numerical columns
     num_cols_extracted = [col for col in X.select_dtypes(include='number').columns]
     num_cols = []
     cat_cols = []
@@ -163,7 +174,7 @@ with row1_2:
         else:
             num_cols.append(col)
    
-    #number of categorical column
+    #categorical columns
     obj_cols = [col for col in X.select_dtypes(include=['object']).columns]
     text_cols = []
     for col in obj_cols:
@@ -171,9 +182,8 @@ with row1_2:
             cat_cols.append(col)
         else:
             text_cols.append(col)
-    
 
-    #number of text column
+    #text columns
 
     #remove dropped columns
     for element in drop_cols:
@@ -199,6 +209,7 @@ with row1_2:
     # print('Missing columns :', missing_cols)
 
     #display info on dataset
+    st.write('Original size of the dataset', X.shape)
     st.write('Dropping ', round(100*len(drop_cols)/number_features,2), '% of feature for missing values')
     st.write('Numerical columns : ', round(100*len(num_cols)/number_features,2), '%')
     st.write('Categorical columns : ', round(100*len(cat_cols)/number_features,2), '%')
@@ -210,9 +221,14 @@ with row1_2:
 
 
 
+with st.beta_expander("Dataframe preprocessed"):
+    row2_spacer1, row2_1, row2_spacer2, row2_2, row2_spacer3 = st.beta_columns((SPACER,ROW,SPACER,ROW, SPACER))
 
-# passthrough_cols = ['age', 'resting bp s', 'cholesterol', 'fasting blood sugar', 'max heart rate', 'oldpeak']
-# cat_cols = ['resting ecg', 'exercise angina', 'ST slope', 'chest pain type', 'sex']
+    with row2_1:
+        st.write(X)
+
+    with row2_2:
+        st.write('test')
 
 
 # # Sidebar 
