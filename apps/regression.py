@@ -52,6 +52,10 @@ def get_imputer(imputer):
         return 'passthrough'
     if imputer == 'Most frequent value':
         return SimpleImputer(strategy='most_frequent')
+    if imputer == 'Mean':
+        return SimpleImputer(strategy='mean')
+    if imputer == 'Median':
+        return SimpleImputer(strategy='median')
 
 def get_encoding(encoder):
     if encoder == 'None':
@@ -133,20 +137,12 @@ missing_value_threshold_selected = st.sidebar.slider('Max missing values in feat
 categorical_imputer_selected = st.sidebar.selectbox('Handling categorical missing values', ['None', 'Most frequent value', 'Delete row'])
 numerical_imputer_selected = st.sidebar.selectbox('Handling numerical missing values', ['None', 'Median', 'Mean', 'Delete row'])
 
-
+encoder_selected = st.sidebar.selectbox('Encoding', ['None', 'OneHotEncoder'])
 scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
+
 
 X = df.drop(columns = target_selected)
 Y = df[target_selected].values.ravel()
-
-
-df.info()
-
-#display info about the dataset with stats about :
-#   - Size of dataset before and after removing missing data
-#   - % of features with more than % missing data
-#   - % of numerical, categorical, text or date data
-#   - % of rows with more than % missing data
 
 row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.beta_columns((SPACER,ROW,SPACER,ROW, SPACER))
 
@@ -167,16 +163,19 @@ with row1_2:
     #numerical columns
     num_cols_extracted = [col for col in X.select_dtypes(include='number').columns]
     num_cols = []
+    num_cols_missing = []
     cat_cols = []
+    cat_cols_missing = []
     for col in num_cols_extracted:
         if(len(X[col].unique()) < 25):
             cat_cols.append(col)
         else:
             num_cols.append(col)
-   
+           
     #categorical columns
     obj_cols = [col for col in X.select_dtypes(include=['object']).columns]
     text_cols = []
+    text_cols_missing = []
     for col in obj_cols:
         if(len(X[col].unique()) < 25):
             cat_cols.append(col)
@@ -216,10 +215,25 @@ with row1_2:
     st.write('Text columns : ', round(100*len(text_cols)/number_features,2), '%')
 
     st.write('Total : ', round(100*(len(drop_cols)+len(num_cols)+len(cat_cols)+len(text_cols))/number_features,2), '%')
+    
+    #create new lists for columns with missing elements
+    for element in X.columns:
+        if (element in num_cols and X[col].isna().sum() != 0):
+            num_cols.remove(element)
+            num_cols_missing.append(element)
+        if (element in cat_cols and X[col].isna().sum() != 0):
+            cat_cols.remove(element)
+            cat_cols_missing.append(element)
+        if (element in text_cols and X[col].isna().sum() != 0):
+            text_cols.remove(element)
+            text_cols_missing.append(element)
 
+    
 
-
-
+# preprocessing = make_column_transformer(
+#     (get_encoding(encoder_selected) , cat_cols),
+#     (get_scaling(scaler_selected) , passthrough_cols)
+# )
 
 with st.beta_expander("Dataframe preprocessed"):
     row2_spacer1, row2_1, row2_spacer2, row2_2, row2_spacer3 = st.beta_columns((SPACER,ROW,SPACER,ROW, SPACER))
@@ -231,12 +245,6 @@ with st.beta_expander("Dataframe preprocessed"):
         st.write('test')
 
 
-# # Sidebar 
-# #selection box for the different features
-# st.sidebar.header('Preprocessing')
-# encoder_selected = st.sidebar.selectbox('Encoding', ['None', 'OneHotEncoder'])
-
-# scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
 
 # preprocessing = make_column_transformer(
 #     (get_encoding(encoder_selected) , cat_cols),
