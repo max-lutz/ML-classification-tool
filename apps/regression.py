@@ -27,13 +27,13 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import GridSearchCV
 
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
-from sklearn.naive_bayes import GaussianNB
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import RidgeClassifier
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor
 
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
@@ -64,6 +64,8 @@ def get_encoding(encoder):
         return OrdinalEncoder(handle_unknown='use_encoded_value')
     if encoder == 'OneHotEncoder':
         return OneHotEncoder(handle_unknown='ignore')
+    if encoder == 'CountVectorizer':
+        return CountVectorizer()
 
 def get_scaling(scaler):
     if scaler == 'None':
@@ -137,9 +139,9 @@ missing_value_threshold_selected = st.sidebar.slider('Max missing values in feat
 categorical_imputer_selected = st.sidebar.selectbox('Handling categorical missing values', ['None', 'Most frequent value', 'Delete row'])
 numerical_imputer_selected = st.sidebar.selectbox('Handling numerical missing values', ['None', 'Median', 'Mean', 'Delete row'])
 
-encoder_selected = st.sidebar.selectbox('Encoding', ['None', 'OneHotEncoder'])
+encoder_selected = st.sidebar.selectbox('Encoding categorical values', ['None', 'OneHotEncoder'])
 scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
-
+text_encoder_selected = st.sidebar.selectbox('Encoding text values', ['None', 'CountVectorizer'])
 
 X = df.drop(columns = target_selected)
 Y = df[target_selected].values.ravel()
@@ -217,29 +219,81 @@ with row1_2:
     st.write('Total : ', round(100*(len(drop_cols)+len(num_cols)+len(cat_cols)+len(text_cols))/number_features,2), '%')
     
     #create new lists for columns with missing elements
-    for element in X.columns:
-        if (element in num_cols and X[col].isna().sum() != 0):
-            num_cols.remove(element)
-            num_cols_missing.append(element)
-        if (element in cat_cols and X[col].isna().sum() != 0):
-            cat_cols.remove(element)
-            cat_cols_missing.append(element)
-        if (element in text_cols and X[col].isna().sum() != 0):
-            text_cols.remove(element)
-            text_cols_missing.append(element)
+    for col in X.columns:
+        if (col in num_cols and X[col].isna().sum() != 0):
+            num_cols.remove(col)
+            num_cols_missing.append(col)
+        if (col in cat_cols and X[col].isna().sum() != 0):
+            cat_cols.remove(col)
+            cat_cols_missing.append(col)
+        if (col in text_cols and X[col].isna().sum() != 0):
+            text_cols.remove(col)
+            text_cols_missing.append(col)
 
+
+preprocessing_imputing = make_column_transformer(
+    (get_imputer(categorical_imputer_selected) , cat_cols_missing),
+    (get_imputer(numerical_imputer_selected) , num_cols_missing),
+    (get_encoding(encoder_selected), cat_cols),
+    (get_encoding(encoder_selected), cat_cols_missing),
+    (get_encoding(text_encoder_selected), text_cols),
+    (get_scaling(scaler_selected), num_cols),
+    (get_scaling(scaler_selected), num_cols_missing)
+)
+
+st.sidebar.header('K fold cross validation selection')
+nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
+rdm_state = st.sidebar.slider('Random state', min_value=0, max_value=42)
+
+st.sidebar.header('Model selection')
+classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors', 'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest']
+classifier_selected = st.sidebar.selectbox('', classifier_list)
+
+st.sidebar.header('Hyperparameters selection')
+hyperparameters = {}
+
+if(classifier_selected == 'Logistic regression'):
+    hyperparameters['solver'] = st.sidebar.selectbox('Solver', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
+    if (hyperparameters['solver'] == 'liblinear'):
+        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2'])
+    if (hyperparameters['solver'] == 'saga'):
+        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2', 'elasticnet'])
+    else:
+        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l2'])
+    hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
+
+if(classifier_selected == 'Ridge classifier'):
+    hyperparameters['alpha'] = st.sidebar.slider('Alpha (default value = 1.0)', 0.0, 10.0, 1.0, 0.1)
+    hyperparameters['solver'] = st.sidebar.selectbox('Solver (default = auto)', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga'])
     
+if(classifier_selected == 'K nearest neighbors'):
+    hyperparameters['n_neighbors'] = st.sidebar.slider('Number of neighbors (default value = 5)', 1, 21, 5, 1)
+    hyperparameters['metric'] = st.sidebar.selectbox('Metric (default = minkowski)', ['minkowski', 'euclidean', 'manhattan', 'chebyshev'])
+    hyperparameters['weights'] = st.sidebar.selectbox('Weights (default = uniform)', ['uniform', 'distance'])
 
-# preprocessing = make_column_transformer(
-#     (get_encoding(encoder_selected) , cat_cols),
-#     (get_scaling(scaler_selected) , passthrough_cols)
-# )
+if(classifier_selected == 'Support vector'):
+    hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'linear', 'poly', 'sigmoid'])
+    hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
+
+if(classifier_selected == 'Decision tree'):
+    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
+    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
+
+if(classifier_selected == 'Random forest'):
+    hyperparameters['n_estimators'] = st.sidebar.slider('Number of estimators (default = 100)', 10, 500, 100, 10)
+    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
+    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
 
 with st.beta_expander("Dataframe preprocessed"):
     row2_spacer1, row2_1, row2_spacer2, row2_2, row2_spacer3 = st.beta_columns((SPACER,ROW,SPACER,ROW, SPACER))
 
     with row2_1:
-        st.write(X)
+        st.write('Numerical features : ', num_cols)
+        st.write('Numerical features with missing data : ', num_cols_missing)
+        st.write('Categorical features : ', cat_cols)
+        st.write('Categorical features with missing data: ', cat_cols_missing)
+        st.write('Text features : ', text_cols)
+        st.write('Text features with missing data: ', text_cols_missing)
 
     with row2_2:
         st.write('test')
