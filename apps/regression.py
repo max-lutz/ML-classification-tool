@@ -44,18 +44,23 @@ from sklearn.decomposition import KernelPCA
 def get_data_regression():
     df = pd.read_csv(os.path.join(os.getcwd(), 'data', 'house_price_prediction.csv'))
 
+    for col in df.select_dtypes(include='number').columns:
+        df[col] = df[col].replace(0, np.nan)
+    df = df.replace({pd.NA: np.nan})
     df = df.drop(columns=['Id'])
     return df
 
+
+
 def get_imputer(imputer):
     if imputer == 'None':
-        return 'passthrough'
+        return 'drop'
     if imputer == 'Most frequent value':
-        return SimpleImputer(strategy='most_frequent')
+        return SimpleImputer(strategy='most_frequent', missing_values=None)
     if imputer == 'Mean':
-        return SimpleImputer(strategy='mean')
+        return SimpleImputer(strategy='mean', missing_values=[np.nan,0])
     if imputer == 'Median':
-        return SimpleImputer(strategy='median')
+        return SimpleImputer(strategy='median', missing_values=[np.nan,0])
 
 def get_encoding(encoder):
     if encoder == 'None':
@@ -78,21 +83,9 @@ def get_scaling(scaler):
         return RobustScaler()
 
 def get_ml_algorithm(algorithm, hyperparameters):
-    if algorithm == 'Logistic regression':
-        return LogisticRegression(solver=hyperparameters['solver'])
-    if algorithm == 'Support vector':
-        return SVC(kernel = hyperparameters['kernel'], C = hyperparameters['C'])
-    if algorithm == 'Naive bayes':
-        return GaussianNB()
-    if algorithm == 'K nearest neighbors':
-        return KNeighborsClassifier(n_neighbors = hyperparameters['n_neighbors'], metric = hyperparameters['metric'], weights = hyperparameters['weights'])
-    if algorithm == 'Ridge classifier':
-        return RidgeClassifier(alpha=hyperparameters['alpha'], solver=hyperparameters['solver'])
-    if algorithm == 'Decision tree':
-        return DecisionTreeClassifier(criterion = hyperparameters['criterion'], min_samples_split = hyperparameters['min_samples_split'])
-    if algorithm == 'Random forest':
-        return RandomForestClassifier(n_estimators = hyperparameters['n_estimators'], criterion = hyperparameters['criterion'], min_samples_split = hyperparameters['min_samples_split'])
-
+    if algorithm == 'Linear regression':
+        return LinearRegression()
+    
 def get_dim_reduc_algo(algorithm, hyperparameters):
     if algorithm == 'None':
         return 'passthrough'
@@ -128,7 +121,7 @@ with title:
 
 
 df = get_data_regression()
-
+df.info()
 #st.write(df)
 target_selected = 'SalePrice'
 
@@ -231,7 +224,7 @@ with row1_2:
             text_cols_missing.append(col)
 
 
-preprocessing_imputing = make_column_transformer(
+preprocessing = make_column_transformer(
     (get_imputer(categorical_imputer_selected) , cat_cols_missing),
     (get_imputer(numerical_imputer_selected) , num_cols_missing),
     (get_encoding(encoder_selected), cat_cols),
@@ -246,58 +239,31 @@ nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
 rdm_state = st.sidebar.slider('Random state', min_value=0, max_value=42)
 
 st.sidebar.header('Model selection')
-classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors', 'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest']
+classifier_list = ['Linear regression']
 classifier_selected = st.sidebar.selectbox('', classifier_list)
 
 st.sidebar.header('Hyperparameters selection')
 hyperparameters = {}
 
-if(classifier_selected == 'Logistic regression'):
-    hyperparameters['solver'] = st.sidebar.selectbox('Solver', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
-    if (hyperparameters['solver'] == 'liblinear'):
-        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2'])
-    if (hyperparameters['solver'] == 'saga'):
-        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2', 'elasticnet'])
-    else:
-        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l2'])
-    hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
+folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
 
-if(classifier_selected == 'Ridge classifier'):
-    hyperparameters['alpha'] = st.sidebar.slider('Alpha (default value = 1.0)', 0.0, 10.0, 1.0, 0.1)
-    hyperparameters['solver'] = st.sidebar.selectbox('Solver (default = auto)', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga'])
-    
-if(classifier_selected == 'K nearest neighbors'):
-    hyperparameters['n_neighbors'] = st.sidebar.slider('Number of neighbors (default value = 5)', 1, 21, 5, 1)
-    hyperparameters['metric'] = st.sidebar.selectbox('Metric (default = minkowski)', ['minkowski', 'euclidean', 'manhattan', 'chebyshev'])
-    hyperparameters['weights'] = st.sidebar.selectbox('Weights (default = uniform)', ['uniform', 'distance'])
+pipeline = Pipeline([
+    ('preprocessing' , preprocessing),
+    #('dimension reduction', get_dim_reduc_algo(dimension_reduction_alogrithm_selected, hyperparameters_dim_reduc)),
+    ('ml', get_ml_algorithm(classifier_selected, hyperparameters))
+])
 
-if(classifier_selected == 'Support vector'):
-    hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'linear', 'poly', 'sigmoid'])
-    hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
-
-if(classifier_selected == 'Decision tree'):
-    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
-    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
-
-if(classifier_selected == 'Random forest'):
-    hyperparameters['n_estimators'] = st.sidebar.slider('Number of estimators (default = 100)', 10, 500, 100, 10)
-    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
-    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
+#cv_score = cross_val_score(pipeline, X, Y, cv=folds)
+preprocessing.fit(X)
+X_preprocessed = preprocessing.transform(X)
+pd.DataFrame(X_preprocessed).info()
 
 with st.beta_expander("Dataframe preprocessed"):
-    row2_spacer1, row2_1, row2_spacer2, row2_2, row2_spacer3 = st.beta_columns((SPACER,ROW,SPACER,ROW, SPACER))
+    st.write(X_preprocessed)
 
-    with row2_1:
-        st.write('Numerical features : ', num_cols)
-        st.write('Numerical features with missing data : ', num_cols_missing)
-        st.write('Categorical features : ', cat_cols)
-        st.write('Categorical features with missing data: ', cat_cols_missing)
-        st.write('Text features : ', text_cols)
-        st.write('Text features with missing data: ', text_cols_missing)
-
-    with row2_2:
-        st.write('test')
-
+# st.subheader('Results')
+# st.write('Accuracy : ', round(cv_score.mean()*100,2), '%')
+# st.write('Standard deviation : ', round(cv_score.std()*100,2), '%')
 
 
 # preprocessing = make_column_transformer(
