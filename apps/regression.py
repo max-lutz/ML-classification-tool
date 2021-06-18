@@ -213,16 +213,15 @@ with row1_2:
     
     #create new lists for columns with missing elements
     for col in X.columns:
-        if (col in num_cols and X[col].isna().sum() != 0):
+        if (col in num_cols and X[col].isna().sum() > 0):
             num_cols.remove(col)
             num_cols_missing.append(col)
-        if (col in cat_cols and X[col].isna().sum() != 0):
+        if (col in cat_cols and X[col].isna().sum() > 0):
             cat_cols.remove(col)
             cat_cols_missing.append(col)
-        if (col in text_cols and X[col].isna().sum() != 0):
+        if (col in text_cols and X[col].isna().sum() > 0):
             text_cols.remove(col)
             text_cols_missing.append(col)
-
 
 preprocessing = make_column_transformer(
     (get_imputer(categorical_imputer_selected) , cat_cols_missing),
@@ -234,6 +233,7 @@ preprocessing = make_column_transformer(
     (get_scaling(scaler_selected), num_cols_missing)
 )
 
+print(cat_cols)
 st.sidebar.header('K fold cross validation selection')
 nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
 rdm_state = st.sidebar.slider('Random state', min_value=0, max_value=42)
@@ -253,7 +253,7 @@ pipeline = Pipeline([
     ('ml', get_ml_algorithm(classifier_selected, hyperparameters))
 ])
 
-#cv_score = cross_val_score(pipeline, X, Y, cv=folds)
+cv_score = cross_val_score(pipeline, X, Y, cv=folds)
 preprocessing.fit(X)
 X_preprocessed = preprocessing.transform(X)
 pd.DataFrame(X_preprocessed).info()
@@ -261,9 +261,16 @@ pd.DataFrame(X_preprocessed).info()
 with st.beta_expander("Dataframe preprocessed"):
     st.write(X_preprocessed)
 
-# st.subheader('Results')
-# st.write('Accuracy : ', round(cv_score.mean()*100,2), '%')
-# st.write('Standard deviation : ', round(cv_score.std()*100,2), '%')
+st.subheader('Results')
+st.write('Accuracy : ', round(cv_score.mean()*100,2), '%')
+st.write('Standard deviation : ', round(cv_score.std()*100,2), '%')
+st.write(cv_score)
+# st.write(pipeline)
+# st.write(X)
+# st.write(Y)
+# st.write(folds)
+
+st.write(X[num_cols_missing])
 
 
 # preprocessing = make_column_transformer(
