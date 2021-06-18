@@ -56,11 +56,11 @@ def get_imputer(imputer):
     if imputer == 'None':
         return 'drop'
     if imputer == 'Most frequent value':
-        return SimpleImputer(strategy='most_frequent', missing_values=None)
+        return SimpleImputer(strategy='most_frequent', missing_values=np.nan)
     if imputer == 'Mean':
-        return SimpleImputer(strategy='mean', missing_values=[np.nan,0])
+        return SimpleImputer(strategy='mean', missing_values=np.nan)
     if imputer == 'Median':
-        return SimpleImputer(strategy='median', missing_values=[np.nan,0])
+        return SimpleImputer(strategy='median', missing_values=np.nan)
 
 def get_encoding(encoder):
     if encoder == 'None':
@@ -223,6 +223,8 @@ with row1_2:
             text_cols.remove(col)
             text_cols_missing.append(col)
 
+
+#need to make two preprocessing pipeline too handle the case encoding without imputer...
 preprocessing = make_column_transformer(
     (get_imputer(categorical_imputer_selected) , cat_cols_missing),
     (get_imputer(numerical_imputer_selected) , num_cols_missing),
