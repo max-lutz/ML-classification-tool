@@ -70,7 +70,7 @@ def get_pipeline_missing_num(imputer, scaler):
     if imputer == 'Median':
         pipeline = make_pipeline(SimpleImputer(strategy='median', missing_values=np.nan))
     if(scaler != 'None'):
-        pipeline.steps.append(get_scaling(scaler))
+        pipeline.steps.append(('scaling', get_scaling(scaler)))
     return pipeline
 
 
@@ -79,7 +79,8 @@ def get_pipeline_missing_cat(imputer, encoder):
         return 'drop'
     if imputer == 'Most frequent value':
         pipeline = make_pipeline(SimpleImputer(strategy='most_frequent', missing_values=np.nan))
-    return pipeline.steps.append(get_encoding(encoder))
+    pipeline.steps.append(('encoding', get_encoding(encoder)))
+    return pipeline
 
 def get_encoding(encoder):
     if encoder == 'None':
@@ -242,7 +243,6 @@ with row1_2:
             text_cols.remove(col)
             text_cols_missing.append(col)
 
-#pip = make_pipeline(get_imputer(numerical_imputer_selected), get_scaling(scaler_selected, numerical_imputer_selected))
 
 #need to make two preprocessing pipeline too handle the case encoding without imputer...
 preprocessing = make_column_transformer(
@@ -250,12 +250,11 @@ preprocessing = make_column_transformer(
     (get_pipeline_missing_num(numerical_imputer_selected, scaler_selected) , num_cols_missing),
 
     (get_encoding(encoder_selected), cat_cols),
-    #(get_encoding(encoder_selected, categorical_imputer_selected), cat_cols_missing),
     (get_encoding(text_encoder_selected), text_cols),
-    
-    (get_scaling(scaler_selected), num_cols),
-    #(get_scaling(scaler_selected, numerical_imputer_selected), num_cols_missing)
+    (get_scaling(scaler_selected), num_cols)
 )
+
+st.text(preprocessing)
 
 st.sidebar.header('K fold cross validation selection')
 nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
@@ -283,6 +282,7 @@ X_preprocessed = preprocessing.transform(X)
 
 with st.beta_expander("Dataframe preprocessed"):
     st.write(X_preprocessed)
+    st.text(X_preprocessed)
 
 st.subheader('Results')
 st.write('Accuracy : ', round(cv_score.mean()*100,2), '%')
