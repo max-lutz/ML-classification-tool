@@ -62,6 +62,25 @@ def get_imputer(imputer):
     if imputer == 'Median':
         return SimpleImputer(strategy='median', missing_values=np.nan)
 
+def get_pipeline_missing_num(imputer, scaler):
+    if imputer == 'None':
+        return 'drop'
+    if imputer == 'Mean':
+        pipeline = make_pipeline(SimpleImputer(strategy='mean', missing_values=np.nan))
+    if imputer == 'Median':
+        pipeline = make_pipeline(SimpleImputer(strategy='median', missing_values=np.nan))
+    if(scaler != 'None'):
+        pipeline.steps.append(get_scaling(scaler))
+    return pipeline
+
+
+def get_pipeline_missing_cat(imputer, encoder):
+    if imputer == 'None' or encoder == 'None':
+        return 'drop'
+    if imputer == 'Most frequent value':
+        pipeline = make_pipeline(SimpleImputer(strategy='most_frequent', missing_values=np.nan))
+    return pipeline.steps.append(get_encoding(encoder))
+
 def get_encoding(encoder):
     if encoder == 'None':
         return 'drop'
@@ -121,7 +140,7 @@ with title:
 
 
 df = get_data_regression()
-df.info()
+#df.info()
 #st.write(df)
 target_selected = 'SalePrice'
 
@@ -223,19 +242,21 @@ with row1_2:
             text_cols.remove(col)
             text_cols_missing.append(col)
 
+#pip = make_pipeline(get_imputer(numerical_imputer_selected), get_scaling(scaler_selected, numerical_imputer_selected))
 
 #need to make two preprocessing pipeline too handle the case encoding without imputer...
 preprocessing = make_column_transformer(
-    (get_imputer(categorical_imputer_selected) , cat_cols_missing),
-    (get_imputer(numerical_imputer_selected) , num_cols_missing),
+    (get_pipeline_missing_cat(categorical_imputer_selected, encoder_selected) , cat_cols_missing),
+    (get_pipeline_missing_num(numerical_imputer_selected, scaler_selected) , num_cols_missing),
+
     (get_encoding(encoder_selected), cat_cols),
-    (get_encoding(encoder_selected), cat_cols_missing),
+    #(get_encoding(encoder_selected, categorical_imputer_selected), cat_cols_missing),
     (get_encoding(text_encoder_selected), text_cols),
+    
     (get_scaling(scaler_selected), num_cols),
-    (get_scaling(scaler_selected), num_cols_missing)
+    #(get_scaling(scaler_selected, numerical_imputer_selected), num_cols_missing)
 )
 
-print(cat_cols)
 st.sidebar.header('K fold cross validation selection')
 nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
 rdm_state = st.sidebar.slider('Random state', min_value=0, max_value=42)
@@ -258,7 +279,7 @@ pipeline = Pipeline([
 cv_score = cross_val_score(pipeline, X, Y, cv=folds)
 preprocessing.fit(X)
 X_preprocessed = preprocessing.transform(X)
-pd.DataFrame(X_preprocessed).info()
+#pd.DataFrame(X_preprocessed).info()
 
 with st.beta_expander("Dataframe preprocessed"):
     st.write(X_preprocessed)
@@ -266,13 +287,7 @@ with st.beta_expander("Dataframe preprocessed"):
 st.subheader('Results')
 st.write('Accuracy : ', round(cv_score.mean()*100,2), '%')
 st.write('Standard deviation : ', round(cv_score.std()*100,2), '%')
-st.write(cv_score)
-# st.write(pipeline)
-# st.write(X)
-# st.write(Y)
-# st.write(folds)
 
-st.write(X[num_cols_missing])
 
 
 # preprocessing = make_column_transformer(
