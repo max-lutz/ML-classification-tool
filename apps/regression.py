@@ -29,8 +29,8 @@ from sklearn.model_selection import GridSearchCV
 
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import ridge_regression
+from sklearn.neighbors import KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
@@ -105,6 +105,19 @@ def get_scaling(scaler):
 def get_ml_algorithm(algorithm, hyperparameters):
     if algorithm == 'Linear regression':
         return LinearRegression()
+    if algorithm == 'Polynomial regression':
+        return PolynomialFeatures()
+    if algorithm == 'Ridge regression':
+        return ridge_regression(alpha=hyperparameters['alpha'], solver=hyperparameters['solver'])
+    if algorithm == 'K nearest neighbors regression':
+        return KNeighborsRegressor(n_neighbors = hyperparameters['n_neighbors'], metric = hyperparameters['metric'], weights = hyperparameters['weights'])
+    if algorithm == 'Support vector regression':
+        return SVR(kernel = hyperparameters['kernel'])
+    if algorithm == 'Decision tree':
+        return DecisionTreeRegressor(criterion = hyperparameters['criterion'], min_samples_split = hyperparameters['min_samples_split'])
+    if algorithm == 'Random forest':
+        return RandomForestRegressor(n_estimators = hyperparameters['n_estimators'], criterion = hyperparameters['criterion'], min_samples_split = hyperparameters['min_samples_split'])
+
     
 def get_dim_reduc_algo(algorithm, hyperparameters):
     if algorithm == 'None':
@@ -254,35 +267,68 @@ preprocessing = make_column_transformer(
     (get_scaling(scaler_selected), num_cols)
 )
 
-st.text(preprocessing)
+preprocessing.fit(X)
+X_preprocessed = preprocessing.transform(X)
+
+# dim = X_preprocessed.shape[1]
+# if(encoder_selected == 'OneHotEncoder'):
+#     dim = dim - 1
+
+# st.sidebar.header('Dimension reduction')
+# dimension_reduction_alogrithm_selected = st.sidebar.selectbox('Algorithm', ['None', 'PCA', 'LDA', 'Kernel PCA'])
+
+# hyperparameters_dim_reduc = {}                                      
+# if(dimension_reduction_alogrithm_selected == 'PCA'):
+#     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+# if(dimension_reduction_alogrithm_selected == 'LDA'):
+#     hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
+# if(dimension_reduction_alogrithm_selected == 'Kernel PCA'):
+#     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+#     hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox('Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
+    
 
 st.sidebar.header('K fold cross validation selection')
 nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
 rdm_state = st.sidebar.slider('Random state', min_value=0, max_value=42)
 
 st.sidebar.header('Model selection')
-classifier_list = ['Linear regression']
-classifier_selected = st.sidebar.selectbox('', classifier_list)
+regressor_list = ['Linear regression', 'Polynomial regression', 'Ridge regression', 'K nearest neighbors regression', 'Support vector regression', 'Decision tree', 'Random forest']
+regressor_selected = st.sidebar.selectbox('', regressor_list)
 
 st.sidebar.header('Hyperparameters selection')
 hyperparameters = {}
+
+
+if(regressor_selected == 'Ridge classifier'):
+    hyperparameters['alpha'] = st.sidebar.slider('Alpha (default value = 1.0)', 0.0, 10.0, 1.0, 0.1)
+    hyperparameters['solver'] = st.sidebar.selectbox('Solver (default = auto)', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga'])
+if(regressor_selected == 'K nearest neighbors regression'):
+        hyperparameters['n_neighbors'] = st.sidebar.slider('Number of neighbors (default value = 5)', 1, 21, 5, 1)
+        hyperparameters['metric'] = st.sidebar.selectbox('Metric (default = minkowski)', ['minkowski', 'euclidean', 'manhattan', 'chebyshev'])
+        hyperparameters['weights'] = st.sidebar.selectbox('Weights (default = uniform)', ['uniform', 'distance'])
+if(regressor_selected == 'Support vector regression'):
+    hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'linear', 'poly', 'sigmoid'])
+if(regressor_selected == 'Decision tree'):
+    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = mse)', ['mse', 'mae', 'poisson'])
+    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
+if(regressor_selected == 'Random forest'):
+        hyperparameters['n_estimators'] = st.sidebar.slider('Number of estimators (default = 100)', 10, 500, 100, 10)
+        hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = mse)', ['mse', 'mae'])
+        hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
+
 
 folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
 
 pipeline = Pipeline([
     ('preprocessing' , preprocessing),
     #('dimension reduction', get_dim_reduc_algo(dimension_reduction_alogrithm_selected, hyperparameters_dim_reduc)),
-    ('ml', get_ml_algorithm(classifier_selected, hyperparameters))
+    ('ml', get_ml_algorithm(regressor_selected, hyperparameters))
 ])
 
 cv_score = cross_val_score(pipeline, X, Y, cv=folds)
-preprocessing.fit(X)
-X_preprocessed = preprocessing.transform(X)
-#pd.DataFrame(X_preprocessed).info()
 
 with st.beta_expander("Dataframe preprocessed"):
-    st.write(X_preprocessed)
-    st.text(X_preprocessed)
+    st.write(pd.DataFrame(X_preprocessed))
 
 st.subheader('Results')
 st.write('Accuracy : ', round(cv_score.mean()*100,2), '%')
