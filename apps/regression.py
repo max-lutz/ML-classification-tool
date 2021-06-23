@@ -35,7 +35,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVR
 from sklearn.ensemble import RandomForestRegressor
 
-from sklearn.decomposition import PCA
+from sklearn.decomposition import TruncatedSVD
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import KernelPCA
 
@@ -105,8 +105,6 @@ def get_scaling(scaler):
 def get_ml_algorithm(algorithm, hyperparameters):
     if algorithm == 'Linear regression':
         return LinearRegression()
-    if algorithm == 'Polynomial regression':
-        return PolynomialFeatures()
     if algorithm == 'Ridge regression':
         return ridge_regression(alpha=hyperparameters['alpha'], solver=hyperparameters['solver'])
     if algorithm == 'K nearest neighbors regression':
@@ -122,8 +120,8 @@ def get_ml_algorithm(algorithm, hyperparameters):
 def get_dim_reduc_algo(algorithm, hyperparameters):
     if algorithm == 'None':
         return 'passthrough'
-    if algorithm == 'PCA':
-        return PCA(n_components = hyperparameters['n_components'])
+    if algorithm == 'Truncated SVD':
+        return TruncatedSVD(n_components = hyperparameters['n_components'])
     if algorithm == 'LDA':
         return LDA(solver = hyperparameters['solver'])
     if algorithm == 'Kernel PCA':
@@ -270,21 +268,21 @@ preprocessing = make_column_transformer(
 preprocessing.fit(X)
 X_preprocessed = preprocessing.transform(X)
 
-# dim = X_preprocessed.shape[1]
-# if(encoder_selected == 'OneHotEncoder'):
-#     dim = dim - 1
+dim = int(X_preprocessed.shape[1]*0.8)
+if(encoder_selected == 'OneHotEncoder'):
+    dim = dim - 1
 
-# st.sidebar.header('Dimension reduction')
-# dimension_reduction_alogrithm_selected = st.sidebar.selectbox('Algorithm', ['None', 'PCA', 'LDA', 'Kernel PCA'])
+st.sidebar.header('Dimension reduction')
+dimension_reduction_algorithm_selected = st.sidebar.selectbox('Algorithm', ['None', 'Truncated SVD', 'Kernel PCA'])
 
-# hyperparameters_dim_reduc = {}                                      
-# if(dimension_reduction_alogrithm_selected == 'PCA'):
-#     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-# if(dimension_reduction_alogrithm_selected == 'LDA'):
-#     hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
-# if(dimension_reduction_alogrithm_selected == 'Kernel PCA'):
-#     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-#     hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox('Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
+hyperparameters_dim_reduc = {}                                      
+if(dimension_reduction_algorithm_selected == 'Truncated SVD'):
+    hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+if(dimension_reduction_algorithm_selected == 'LDA'):
+    hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
+if(dimension_reduction_algorithm_selected == 'Kernel PCA'):
+    hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+    hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox('Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
     
 
 st.sidebar.header('K fold cross validation selection')
@@ -292,7 +290,7 @@ nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
 rdm_state = st.sidebar.slider('Random state', min_value=0, max_value=42)
 
 st.sidebar.header('Model selection')
-regressor_list = ['Linear regression', 'Polynomial regression', 'Ridge regression', 'K nearest neighbors regression', 'Support vector regression', 'Decision tree', 'Random forest']
+regressor_list = ['Linear regression', 'Ridge regression', 'K nearest neighbors regression', 'Support vector regression', 'Decision tree', 'Random forest']
 regressor_selected = st.sidebar.selectbox('', regressor_list)
 
 st.sidebar.header('Hyperparameters selection')
@@ -321,7 +319,7 @@ folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
 
 pipeline = Pipeline([
     ('preprocessing' , preprocessing),
-    #('dimension reduction', get_dim_reduc_algo(dimension_reduction_alogrithm_selected, hyperparameters_dim_reduc)),
+    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm_selected, hyperparameters_dim_reduc)),
     ('ml', get_ml_algorithm(regressor_selected, hyperparameters))
 ])
 
