@@ -5,4 +5,6 @@ This app allows you to test different machine learning algorithms and combinatio
 The dataset for classification is composed of medical observation of patients and their risk of developping heart diseases
 
 Data source (accessed mid may 2021): https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive
+
+Access app : https://ml-exploration-tool.herokuapp.com/
                
