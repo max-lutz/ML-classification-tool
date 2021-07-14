@@ -9,7 +9,7 @@ app = MultiApp()
 
 # Add all your application here
 app.add_app("Classification", classification.app)
-app.add_app("Regression", regression.app)
+#app.add_app("Regression", regression.app)
 
 # The main app
 app.run()
