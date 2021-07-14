@@ -13,12 +13,16 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import RobustScaler
 
+from sklearn.impute import SimpleImputer
+from sklearn.feature_extraction.text import CountVectorizer
+
 from sklearn.pipeline import make_pipeline
 from sklearn.compose import make_column_transformer 
 from sklearn.preprocessing import FunctionTransformer
 from sklearn.pipeline import Pipeline
 
 from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import GridSearchCV
 
@@ -63,6 +67,39 @@ def get_data_classification():
     df['ST slope'] = df['ST slope'].astype(str)
     return df
 
+def get_data_titanic():
+    return pd.read_csv(os.path.join(os.getcwd(), 'data', 'titanic.csv'))
+
+def get_imputer(imputer):
+    if imputer == 'None':
+        return 'drop'
+    if imputer == 'Most frequent value':
+        return SimpleImputer(strategy='most_frequent', missing_values=np.nan)
+    if imputer == 'Mean':
+        return SimpleImputer(strategy='mean', missing_values=np.nan)
+    if imputer == 'Median':
+        return SimpleImputer(strategy='median', missing_values=np.nan)
+
+def get_pipeline_missing_num(imputer, scaler):
+    if imputer == 'None':
+        return 'drop'
+    if imputer == 'Mean':
+        pipeline = make_pipeline(SimpleImputer(strategy='mean', missing_values=np.nan))
+    if imputer == 'Median':
+        pipeline = make_pipeline(SimpleImputer(strategy='median', missing_values=np.nan))
+    if(scaler != 'None'):
+        pipeline.steps.append(('scaling', get_scaling(scaler)))
+    return pipeline
+
+
+def get_pipeline_missing_cat(imputer, encoder):
+    if imputer == 'None' or encoder == 'None':
+        return 'drop'
+    if imputer == 'Most frequent value':
+        pipeline = make_pipeline(SimpleImputer(strategy='most_frequent', missing_values=np.nan))
+    pipeline.steps.append(('encoding', get_encoding(encoder)))
+    return pipeline
+
 def get_encoding(encoder):
     if encoder == 'None':
         return 'drop'
@@ -70,6 +107,8 @@ def get_encoding(encoder):
         return OrdinalEncoder(handle_unknown='use_encoded_value')
     if encoder == 'OneHotEncoder':
         return OneHotEncoder(handle_unknown='ignore')
+    if encoder == 'CountVectorizer':
+        return CountVectorizer()
 
 def get_scaling(scaler):
     if scaler == 'None':
@@ -137,11 +176,12 @@ with title:
 #         df = pd.read_csv(uploaded_file)
 # else: 
 
-df = get_data_classification()
+#df = get_data_classification()
+df = get_data_titanic()
 
 #st.write(df)
 
-target_selected = 'target'
+target_selected = 'Survived'
 # st.sidebar.header('Select feature to predict')
 # target_selected = st.sidebar.selectbox('Predict', df.columns.to_list())
 
@@ -159,7 +199,7 @@ encoder_selected = st.sidebar.selectbox('Encoding categorical values', ['None', 
 scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
 text_encoder_selected = st.sidebar.selectbox('Encoding text values', ['None', 'CountVectorizer'])
 
-row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.beta_columns((SPACER,ROW,SPACER,ROW, SPACER))
+row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.beta_columns((SPACER/10,ROW*1.5,SPACER,ROW, SPACER/10))
 
 with row1_1:
     st.write(df)
@@ -208,20 +248,6 @@ with row1_2:
         if element in text_cols:
             text_cols.remove(element)
 
-    #check if we miss any column
-    # all_cols = [drop_cols, num_cols, cat_cols, text_cols]
-    # all_cols_set = set()
-    # for list_ in all_cols:
-    #     for col in list_:
-    #         if(col in all_cols_set):
-    #             print('Warning, column ',col,' is duplicate')
-    #         all_cols_set.add(col)
-    # original_cols_set = set(X.columns)
-    # badly_written_cols = all_cols_set - original_cols_set
-    # missing_cols = original_cols_set - all_cols_set
-    # print('Columns badly written :', badly_written_cols)
-    # print('Missing columns :', missing_cols)
-
     #display info on dataset
     st.write('Original size of the dataset', X.shape)
     st.write('Dropping ', round(100*len(drop_cols)/number_features,2), '% of feature for missing values')
@@ -243,20 +269,17 @@ with row1_2:
             text_cols.remove(col)
             text_cols_missing.append(col)
 
-passthrough_cols = ['age', 'resting bp s', 'cholesterol', 'fasting blood sugar', 'max heart rate', 'oldpeak']
-cat_cols = ['resting ecg', 'exercise angina', 'ST slope', 'chest pain type', 'sex']
-
-
-# Sidebar 
-#selection box for the different features
-# st.sidebar.header('Preprocessing')
-# encoder_selected = st.sidebar.selectbox('Encoding', ['None', 'OneHotEncoder'])
-# scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
-
+#need to make two preprocessing pipeline too handle the case encoding without imputer...
 preprocessing = make_column_transformer(
-    (get_encoding(encoder_selected) , cat_cols),
-    (get_scaling(scaler_selected) , passthrough_cols)
+    (get_pipeline_missing_cat(categorical_imputer_selected, encoder_selected) , cat_cols_missing),
+    (get_pipeline_missing_num(numerical_imputer_selected, scaler_selected) , num_cols_missing),
+
+    (get_encoding(encoder_selected), cat_cols),
+    (get_encoding(text_encoder_selected), text_cols),
+    (get_scaling(scaler_selected), num_cols)
 )
+
+
 dim = preprocessing.fit_transform(X).shape[1]
 if(encoder_selected == 'OneHotEncoder'):
     dim = dim - 1
@@ -317,8 +340,8 @@ if(classifier_selected == 'Random forest'):
     hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
     hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
 
-with st.beta_expander("Original dataframe"):
-    st.write(df)
+# with st.beta_expander("Original dataframe"):
+#     st.write(df)
 
 # with st.beta_expander("Pairplot dataframe"), _lock:
 #     fig = sns.pairplot(df, hue='target')
@@ -342,10 +365,7 @@ with st.beta_expander("Original dataframe"):
 #     with row3_2:
 #         st.write('Some text explaining the plot')
 
-preprocessing = make_column_transformer(
-    (get_encoding(encoder_selected) , cat_cols),
-    (get_scaling(scaler_selected) , passthrough_cols)
-)
+
 
 folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
 
