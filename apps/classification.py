@@ -164,14 +164,36 @@ title_spacer1, title, title_spacer_2 = st.beta_columns((.1,ROW,.1))
 with title:
     st.title('Classification exploratory tool')
     st.markdown("""
-            This app allows you to test different machine learning algorithms and combinations of hyperparameters 
-            to classify patients with risk of developping heart diseases!
-            The dataset is composed of medical observation of patients and their risk of developping heart diseases
+            This app allows you to test different machine learning algorithms and combinations of preprocessing techniques 
+            to classify passengers from the Titanic dataset!
+            The dataset is composed of passengers from the Titanic and if they survived or not.
             * Use the menu on the left to select ML algorithm and hyperparameters
-            * Data source (accessed mid may 2021): [heart disease dataset](https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive).
+            * Data source : [titanic dataset](https://www.kaggle.com/c/titanic/data?select=train.csv).
             * The code can be accessed at [code](https://github.com/max-lutz/ML-exploration-tool).
+            * Click on how to use this app to get more explanation.
             """)
 
+title_spacer2, title_2, title_spacer_2 = st.beta_columns((.1,ROW,.1))
+with title_2:
+    with st.beta_expander("How to use this app"):
+        st.markdown("""
+            This app allows you to test different machine learning algorithms and combinations of preprocessing techniques.
+            The menu on the left allows you to choose
+            * the columns to drop (either by% of missing value or by name)
+            * the transfomation to apply on your columns (imputation, scaling, encoding...)
+            * the dimension reduction algorithm (none, PCA, LDA, kernel PCA)
+            * the type of cross validation (KFold, StratifiedKFold)
+            * the machine learning algorithm and its hyperparameters
+            """)
+        st.write("")
+        st.markdown("""
+            Each time you modify a parameter, the algorithm applies the modifications and outputs the preprocessed dataset and the results of the cross validation.
+        """)
+
+
+st.write("")
+
+#Data source (accessed mid may 2021): [heart disease dataset](https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive).
 
 #dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset'])
 # if(dataset == 'Load my own dataset'):
