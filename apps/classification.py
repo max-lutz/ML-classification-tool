@@ -18,13 +18,11 @@ from sklearn.feature_extraction.text import CountVectorizer
 
 from sklearn.pipeline import make_pipeline
 from sklearn.compose import make_column_transformer 
-from sklearn.preprocessing import FunctionTransformer
 from sklearn.pipeline import Pipeline
 
 from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import GridSearchCV
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -145,6 +143,12 @@ def get_dim_reduc_algo(algorithm, hyperparameters):
         return LDA(solver = hyperparameters['solver'])
     if algorithm == 'Kernel PCA':
         return KernelPCA(n_components = hyperparameters['n_components'], kernel = hyperparameters['kernel'])
+
+def get_fold(algorithm, nb_splits):
+    if algorithm == 'Kfold':
+        return KFold(n_plits = nb_splits, shuffle=True, random_state = 0)
+    if algorithm == 'StratifiedKFold':
+        return StratifiedKFold()
     
 
 
@@ -190,14 +194,20 @@ Y = df[target_selected].values.ravel()
 
 #Sidebar 
 #selection box for the different features
-st.sidebar.header('Preprocessing')
+st.sidebar.title('Preprocessing')
+st.sidebar.subheader('Dropping columns')
 missing_value_threshold_selected = st.sidebar.slider('Max missing values in feature (%)', 0,100,30,1)
+cols_to_remove = st.sidebar.multiselect('Remove columns', X.columns.to_list())
+
+st.sidebar.subheader('Column transformation')
 categorical_imputer_selected = st.sidebar.selectbox('Handling categorical missing values', ['None', 'Most frequent value', 'Delete row'])
 numerical_imputer_selected = st.sidebar.selectbox('Handling numerical missing values', ['None', 'Median', 'Mean', 'Delete row'])
 
 encoder_selected = st.sidebar.selectbox('Encoding categorical values', ['None', 'OneHotEncoder'])
 scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
 text_encoder_selected = st.sidebar.selectbox('Encoding text values', ['None', 'CountVectorizer'])
+
+st.header('Original dataset')
 
 row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.beta_columns((SPACER/10,ROW*1.5,SPACER,ROW, SPACER/10))
 
@@ -208,10 +218,10 @@ with row1_2:
     number_features = len(X.columns)
 
     #feature with missing values
-    drop_cols = []
+    drop_cols = cols_to_remove
     for col in X.columns:
         #put the feature in the drop trable if threshold not respected
-        if(X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected):
+        if((X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected) & (col not in drop_cols)):
             drop_cols.append(col)
     
 
@@ -284,7 +294,7 @@ dim = preprocessing.fit_transform(X).shape[1]
 if(encoder_selected == 'OneHotEncoder'):
     dim = dim - 1
 
-st.sidebar.header('Dimension reduction')
+st.sidebar.title('Dimension reduction')
 dimension_reduction_alogrithm_selected = st.sidebar.selectbox('Algorithm', ['None', 'PCA', 'LDA', 'Kernel PCA'])
 
 hyperparameters_dim_reduc = {}                                      
@@ -297,11 +307,12 @@ if(dimension_reduction_alogrithm_selected == 'Kernel PCA'):
     hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox('Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
     
 
-st.sidebar.header('K fold cross validation selection')
+st.sidebar.title('Cross validation')
+type = st.sidebar.selectbox('Type', ['KFold', 'StratifiedKFold'])
 nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
-rdm_state = st.sidebar.slider('Random state', min_value=0, max_value=42)
+folds = get_fold(type, nb_splits)
 
-st.sidebar.header('Model selection')
+st.sidebar.title('Model selection')
 classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors', 'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest']
 classifier_selected = st.sidebar.selectbox('', classifier_list)
 
@@ -367,7 +378,13 @@ if(classifier_selected == 'Random forest'):
 
 
 
-folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
+#folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
+
+preprocessing_pipeline = Pipeline([
+    ('preprocessing' , preprocessing),
+    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_alogrithm_selected, hyperparameters_dim_reduc))
+])
+
 
 pipeline = Pipeline([
     ('preprocessing' , preprocessing),
@@ -376,12 +393,14 @@ pipeline = Pipeline([
 ])
 
 cv_score = cross_val_score(pipeline, X, Y, cv=folds)
-preprocessing.fit(X)
-X_preprocessed = preprocessing.transform(X)
+preprocessing_pipeline.fit(X)
+X_preprocessed = preprocessing_pipeline.transform(X)
 
+st.header('Preprocessed dataset')
+st.write(X_preprocessed)
 
-with st.beta_expander("Dataframe preprocessed"):
-    st.write(X_preprocessed)
+# with st.beta_expander("Dataframe preprocessed"):
+#     st.write(X_preprocessed)
 
 
 st.subheader('Results')
