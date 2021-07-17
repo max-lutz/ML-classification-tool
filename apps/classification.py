@@ -1,11 +1,16 @@
+# To do :
+# - joblib to export pipeline
+# - explication joblib et comment utiliser ce model
+# - ajouter l'option d'ajouter un csv et de travailler dessus
+# - count vectorizer
+# - 
+
+
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import os
-# import matplotlib
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# from matplotlib.backends.backend_agg import RendererAgg
 
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.preprocessing import OneHotEncoder
@@ -15,6 +20,7 @@ from sklearn.preprocessing import RobustScaler
 
 from sklearn.impute import SimpleImputer
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 from sklearn.pipeline import make_pipeline
 from sklearn.compose import make_column_transformer 
@@ -35,6 +41,7 @@ from sklearn.linear_model import RidgeClassifier
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import KernelPCA
+from sklearn.decomposition import TruncatedSVD
 
 #Loading the data
 @st.cache
@@ -107,6 +114,8 @@ def get_encoding(encoder):
         return OneHotEncoder(handle_unknown='ignore')
     if encoder == 'CountVectorizer':
         return CountVectorizer()
+    if encoder == 'TfidfVectorizer':
+        return TfidfVectorizer()
 
 def get_scaling(scaler):
     if scaler == 'None':
@@ -142,7 +151,9 @@ def get_dim_reduc_algo(algorithm, hyperparameters):
     if algorithm == 'LDA':
         return LDA(solver = hyperparameters['solver'])
     if algorithm == 'Kernel PCA':
-        return KernelPCA(n_components = hyperparameters['n_components'], kernel = hyperparameters['kernel'])
+        return KernelPCA(n_components = hyperparameters['n_components'])
+    if algorithm == 'Truncated SVD':
+        return TruncatedSVD(n_components = hyperparameters['n_components'])
 
 def get_fold(algorithm, nb_splits):
     if algorithm == 'Kfold':
@@ -227,7 +238,7 @@ numerical_imputer_selected = st.sidebar.selectbox('Handling numerical missing va
 
 encoder_selected = st.sidebar.selectbox('Encoding categorical values', ['None', 'OneHotEncoder'])
 scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
-text_encoder_selected = st.sidebar.selectbox('Encoding text values', ['None', 'CountVectorizer'])
+text_encoder_selected = st.sidebar.selectbox('Encoding text values', ['None', 'CountVectorizer', 'TfidfVectorizer'])
 
 st.header('Original dataset')
 
@@ -269,8 +280,6 @@ with row1_2:
         else:
             text_cols.append(col)
 
-    #text columns
-
     #remove dropped columns
     for element in drop_cols:
         if element in num_cols:
@@ -297,9 +306,16 @@ with row1_2:
         if (col in cat_cols and X[col].isna().sum() > 0):
             cat_cols.remove(col)
             cat_cols_missing.append(col)
-        if (col in text_cols and X[col].isna().sum() > 0):
-            text_cols.remove(col)
-            text_cols_missing.append(col)
+        # if (col in text_cols and X[col].isna().sum() > 0):
+        #     text_cols.remove(col)
+        #     text_cols_missing.append(col)
+
+    #combine text columns in one new column because countVectorizer does not accept multiple columns
+    X['text'] = X[text_cols].agg(' '.join, axis=1)
+    for cols in text_cols:
+        drop_cols.append(cols)
+    text_cols = 'text'
+
 
 #need to make two preprocessing pipeline too handle the case encoding without imputer...
 preprocessing = make_column_transformer(
@@ -312,22 +328,24 @@ preprocessing = make_column_transformer(
 )
 
 
+st.sidebar.title('Dimension reduction')
+dimension_reduction_algorithm_selected = st.sidebar.selectbox('Algorithm', ['None', 'Kernel PCA'])
+
 dim = preprocessing.fit_transform(X).shape[1]
 if(encoder_selected == 'OneHotEncoder'):
     dim = dim - 1
 
-st.sidebar.title('Dimension reduction')
-dimension_reduction_alogrithm_selected = st.sidebar.selectbox('Algorithm', ['None', 'PCA', 'LDA', 'Kernel PCA'])
-
 hyperparameters_dim_reduc = {}                                      
-if(dimension_reduction_alogrithm_selected == 'PCA'):
+# if(dimension_reduction_algorithm_selected == 'PCA'):
+#     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+# if(dimension_reduction_algorithm_selected == 'LDA'):
+#     hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
+if(dimension_reduction_algorithm_selected == 'Kernel PCA'):
     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-if(dimension_reduction_alogrithm_selected == 'LDA'):
-    hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
-if(dimension_reduction_alogrithm_selected == 'Kernel PCA'):
-    hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-    hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox('Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
-    
+    #hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox('Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
+# if(dimension_reduction_algorithm_selected == 'Truncated SVD'):
+#     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+
 
 st.sidebar.title('Cross validation')
 type = st.sidebar.selectbox('Type', ['KFold', 'StratifiedKFold'])
@@ -404,13 +422,13 @@ if(classifier_selected == 'Random forest'):
 
 preprocessing_pipeline = Pipeline([
     ('preprocessing' , preprocessing),
-    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_alogrithm_selected, hyperparameters_dim_reduc))
+    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm_selected, hyperparameters_dim_reduc))
 ])
 
 
 pipeline = Pipeline([
     ('preprocessing' , preprocessing),
-    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_alogrithm_selected, hyperparameters_dim_reduc)),
+    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm_selected, hyperparameters_dim_reduc)),
     ('ml', get_ml_algorithm(classifier_selected, hyperparameters))
 ])
 
