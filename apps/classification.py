@@ -151,7 +151,7 @@ def get_dim_reduc_algo(algorithm, hyperparameters):
     if algorithm == 'LDA':
         return LDA(solver = hyperparameters['solver'])
     if algorithm == 'Kernel PCA':
-        return KernelPCA(n_components = hyperparameters['n_components'])
+        return KernelPCA(n_components = hyperparameters['n_components'], kernel = hyperparameters['kernel'])
     if algorithm == 'Truncated SVD':
         return TruncatedSVD(n_components = hyperparameters['n_components'])
 
@@ -311,7 +311,7 @@ with row1_2:
         #     text_cols_missing.append(col)
 
     #combine text columns in one new column because countVectorizer does not accept multiple columns
-    X['text'] = X[text_cols].agg(' '.join, axis=1)
+    X['text'] = X[text_cols].astype(str).agg(' '.join, axis=1)
     for cols in text_cols:
         drop_cols.append(cols)
     text_cols = 'text'
@@ -328,24 +328,28 @@ preprocessing = make_column_transformer(
 )
 
 
-st.sidebar.title('Dimension reduction')
-dimension_reduction_algorithm_selected = st.sidebar.selectbox('Algorithm', ['None', 'Kernel PCA'])
-
 dim = preprocessing.fit_transform(X).shape[1]
-if(encoder_selected == 'OneHotEncoder'):
+if((encoder_selected == 'OneHotEncoder') | (dim > 2)):
     dim = dim - 1
 
-hyperparameters_dim_reduc = {}                                      
-# if(dimension_reduction_algorithm_selected == 'PCA'):
-#     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-# if(dimension_reduction_algorithm_selected == 'LDA'):
-#     hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
-if(dimension_reduction_algorithm_selected == 'Kernel PCA'):
-    hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-    #hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox('Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
-# if(dimension_reduction_algorithm_selected == 'Truncated SVD'):
-#     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+if (dim > 2):
+    st.sidebar.title('Dimension reduction')
+    dimension_reduction_algorithm_selected = st.sidebar.selectbox('Algorithm', ['None', 'Kernel PCA'])
 
+    hyperparameters_dim_reduc = {}                                      
+    # if(dimension_reduction_algorithm_selected == 'PCA'):
+    #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+    # if(dimension_reduction_algorithm_selected == 'LDA'):
+    #     hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
+    if(dimension_reduction_algorithm_selected == 'Kernel PCA'):
+        hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+        hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox('Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
+    # if(dimension_reduction_algorithm_selected == 'Truncated SVD'):
+    #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+else :
+    st.sidebar.title('Dimension reduction')
+    dimension_reduction_algorithm_selected = st.sidebar.selectbox('Number of features too low', ['None'])
+    hyperparameters_dim_reduc = {}         
 
 st.sidebar.title('Cross validation')
 type = st.sidebar.selectbox('Type', ['KFold', 'StratifiedKFold'])
