@@ -2,7 +2,6 @@
 # - joblib to export pipeline
 # - explication joblib et comment utiliser ce model
 # - ajouter l'option d'ajouter un csv et de travailler dessus
-# - count vectorizer
 # - 
 
 
@@ -42,6 +41,9 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import KernelPCA
 from sklearn.decomposition import TruncatedSVD
+
+import joblib
+import streamlit_download_button as button
 
 #Loading the data
 @st.cache
@@ -447,8 +449,20 @@ st.write(X_preprocessed)
 #     st.write(X_preprocessed)
 
 
+
 st.subheader('Results')
 st.write('Accuracy : ', round(cv_score.mean()*100,2), '%')
 st.write('Standard deviation : ', round(cv_score.std()*100,2), '%')
+
+
+st.subheader('Download pipeline')
+filename = 'classification.model'
+joblib.dump(pipeline, filename)
+with open(filename, 'rb') as f:
+    s = f.read()
+    download_button_str = button.download_button(s, filename, f'Click here to download {filename}')
+    st.markdown(download_button_str, unsafe_allow_html=True)
+
+
 
 
