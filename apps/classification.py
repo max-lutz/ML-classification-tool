@@ -463,6 +463,26 @@ with open(filename, 'rb') as f:
     download_button_str = button.download_button(s, filename, f'Click here to download {filename}')
     st.markdown(download_button_str, unsafe_allow_html=True)
 
+with st.beta_expander('How to use the model you downloaded'):
+    row2_spacer1, row2_1, row2_spacer2, row2_2, row2_spacer3 = st.beta_columns((SPACER/10,ROW,SPACER,ROW, SPACER/10))
 
+    with row2_1:
+        st.write('''Put the classification.model file in your working directory
+                copy paste the code below in your notebook/code and make sure df is in the right format, with the right number of columns.
+            ''')
+        st.code('''
+import joblib
+pipeline = joblib.load('classification.model')
+prediction = pipeline.predict(df)
+print(prediction)
+        ''')
+
+    with row2_2:
+        st.markdown('**Library versions**')
+        import sklearn
+        st.write("sklearn version : ", sklearn.__version__)
+        st.write("numpy version : ", np.__version__)
+        st.write("pandas version : ", pd.__version__)
+        st.write("joblib version : ", joblib.__version__)
 
 
