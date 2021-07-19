@@ -166,7 +166,7 @@ def get_fold(algorithm, nb_splits):
 
 
 #configuration of the page
-#st.set_page_config(layout="wide")
+st.set_page_config(layout="wide")
 # matplotlib.use("agg")
 # _lock = RendererAgg.lock
 
