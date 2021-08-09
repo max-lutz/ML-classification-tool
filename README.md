@@ -10,6 +10,8 @@ Data source : https://www.kaggle.com/c/titanic/data?select=train.csv
 
 Access app : https://ml-exploration-tool.herokuapp.com/
 
+![ml exploratory gif](https://user-images.githubusercontent.com/39080117/128754484-1500686f-caaf-42d0-8140-1d7c3f083405.gif)
+
 How to use this reporitory:
 1. Clone the reporitory
 2. Install the libraries needed (check requirements.txt)
