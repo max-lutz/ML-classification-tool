@@ -8,7 +8,7 @@ Once you have built your pipeline you can donwload it and reuse it in your proje
 
 Data source : https://www.kaggle.com/c/titanic/data?select=train.csv
 
-Access app : https://ml-exploration-tool.herokuapp.com/
+Access app : https://ml-exploration-tool.streamlit.app/
 
 ![ml exploratory gif](https://user-images.githubusercontent.com/39080117/128754484-1500686f-caaf-42d0-8140-1d7c3f083405.gif)
 
