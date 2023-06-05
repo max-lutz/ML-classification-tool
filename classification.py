@@ -41,6 +41,8 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import KernelPCA
 from sklearn.decomposition import TruncatedSVD
 
+from sklearn.datasets import load_iris, load_diabetes, load_wine
+
 import joblib
 import streamlit_download_button as button
 
@@ -77,7 +79,10 @@ def get_data_heart_disease():
 
 
 def get_data_titanic():
-    return pd.read_csv(os.path.join(os.getcwd(), 'data', 'titanic.csv'))
+    df = pd.read_csv(os.path.join(os.getcwd(), 'data', 'titanic.csv'))
+    target = df.pop("Survived")
+    df.insert(len(df.columns), "Survived", target)
+    return df
 
 
 def get_imputer(imputer):
@@ -216,7 +221,8 @@ st.write("")
 
 # Data source (accessed mid may 2021): [heart disease dataset](https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive).
 
-dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset'])
+dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset', 'Iris dataset', 
+                                          'Diabetes dataset', 'Wine dataset'])
 if(dataset == 'Load my own dataset'):
     uploaded_file = st.file_uploader('File uploader')
     if uploaded_file is not None:
@@ -225,7 +231,15 @@ elif(dataset == 'Titanic dataset'):
         df = get_data_titanic()
 elif(dataset == 'Heart disease dataset'):
     df = get_data_heart_disease()
-    
+elif(dataset == 'Iris dataset'):
+    df = load_iris(as_frame=True).data
+    df["target"] = load_iris(as_frame=True).target
+elif(dataset == 'Diabetes dataset'):
+    df = load_diabetes(as_frame=True).data
+    df["target"] = load_diabetes(as_frame=True).target
+elif(dataset == 'Wine dataset'):
+    df = load_wine(as_frame=True).data
+    df["target"] = load_wine(as_frame=True).target
     
 # df = get_data_titanic()
 
@@ -233,7 +247,9 @@ elif(dataset == 'Heart disease dataset'):
 
 # target_selected = 'Survived'
 st.sidebar.header('Select feature to predict')
-target_selected = st.sidebar.selectbox('Predict', df.columns.to_list())
+possible_target_list = df.columns.to_list()
+possible_target_list.reverse()
+target_selected = st.sidebar.selectbox('Predict', possible_target_list)
 
 X = df.drop(columns=target_selected)
 Y = df[target_selected].values.ravel()
@@ -279,7 +295,7 @@ with row1_2:
     cat_cols = []
     cat_cols_missing = []
     for col in num_cols_extracted:
-        if (len(X[col].unique()) < 25):
+        if (len(X[col].unique()) < 15):
             cat_cols.append(col)
         else:
             num_cols.append(col)
