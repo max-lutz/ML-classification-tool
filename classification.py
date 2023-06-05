@@ -1,8 +1,6 @@
-# To do :
-# - joblib to export pipeline
-# - explication joblib et comment utiliser ce model
-# - ajouter l'option d'ajouter un csv et de travailler dessus
-# -
+# TODO :
+# - add the option of uploading your own csv file
+# - improve documentation
 
 
 import streamlit as st
