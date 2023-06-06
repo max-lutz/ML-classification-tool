@@ -219,26 +219,26 @@ st.write("")
 
 # Data source (accessed mid may 2021): [heart disease dataset](https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive).
 
-dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset', 'Iris dataset', 
-                                          'Diabetes dataset', 'Wine dataset'])
-if(dataset == 'Load my own dataset'):
+dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset', 'Iris dataset',
+                                          'Diabetes dataset', 'Wine dataset', 'Load my own dataset'])
+if (dataset == 'Load my own dataset'):
     uploaded_file = st.file_uploader('File uploader')
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file)
-elif(dataset == 'Titanic dataset'):
-        df = get_data_titanic()
-elif(dataset == 'Heart disease dataset'):
+elif (dataset == 'Titanic dataset'):
+    df = get_data_titanic()
+elif (dataset == 'Heart disease dataset'):
     df = get_data_heart_disease()
-elif(dataset == 'Iris dataset'):
+elif (dataset == 'Iris dataset'):
     df = load_iris(as_frame=True).data
     df["target"] = load_iris(as_frame=True).target
-elif(dataset == 'Diabetes dataset'):
+elif (dataset == 'Diabetes dataset'):
     df = load_diabetes(as_frame=True).data
     df["target"] = load_diabetes(as_frame=True).target
-elif(dataset == 'Wine dataset'):
+elif (dataset == 'Wine dataset'):
     df = load_wine(as_frame=True).data
     df["target"] = load_wine(as_frame=True).target
-    
+
 # df = get_data_titanic()
 
 # st.write(df)
