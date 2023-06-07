@@ -454,7 +454,7 @@ if (classifier_selected == 'Random forest'):
 #         st.write('Some text explaining the plot')
 
 
-#folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
+# folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
 
 preprocessing_pipeline = Pipeline([
     ('preprocessing', preprocessing),
@@ -486,11 +486,8 @@ st.write('Standard deviation : ', round(cv_score.std()*100, 2), '%')
 
 st.subheader('Download pipeline')
 filename = 'classification.model'
-joblib.dump(pipeline, filename)
-with open(filename, 'rb') as f:
-    s = f.read()
-    download_button_str = button.download_button(s, filename, f'Click here to download {filename}')
-    st.markdown(download_button_str, unsafe_allow_html=True)
+download_button_str = button.download_button(pipeline, filename, f'Click here to download {filename}', pickle_it=True)
+st.markdown(download_button_str, unsafe_allow_html=True)
 
 with st.expander('How to use the model you downloaded'):
     row2_spacer1, row2_1, row2_spacer2, row2_2, row2_spacer3 = st.columns((SPACER/10, ROW, SPACER, ROW, SPACER/10))
