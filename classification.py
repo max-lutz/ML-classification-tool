@@ -47,7 +47,7 @@ import streamlit_download_button as button
 # Loading the data
 
 
-@st.cache
+@st.cache_data
 def get_data_heart_disease():
     df = pd.read_csv(os.path.join(os.getcwd(), 'data', 'heart_statlog.csv'))
     df.loc[df['chest pain type'] == 1, 'chest pain type'] = 'typical angina'
@@ -176,6 +176,32 @@ def get_fold(algorithm, nb_splits):
         return StratifiedKFold(n_splits=nb_splits, shuffle=True, random_state=0)
 
 
+def split_columns(df):
+    # numerical columns
+    num_cols_extracted = [col for col in df.select_dtypes(include='number').columns]
+    num_cols = []
+    num_cols_missing = []
+    cat_cols = []
+    cat_cols_missing = []
+    for col in num_cols_extracted:
+        if (len(df[col].unique()) < 15):
+            cat_cols.append(col)
+        else:
+            num_cols.append(col)
+
+    # categorical columns
+    obj_cols = [col for col in df.select_dtypes(include=['object']).columns]
+    text_cols = []
+    text_cols_missing = []
+    for col in obj_cols:
+        if (len(df[col].unique()) < 25):
+            cat_cols.append(col)
+        else:
+            text_cols.append(col)
+
+    return num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing
+
+
 # configuration of the page
 st.set_page_config(layout="wide")
 # matplotlib.use("agg")
@@ -245,9 +271,10 @@ elif (dataset == 'Wine dataset'):
 
 # target_selected = 'Survived'
 st.sidebar.header('Select feature to predict')
-possible_target_list = df.columns.to_list()
-possible_target_list.reverse()
-target_selected = st.sidebar.selectbox('Predict', possible_target_list)
+_, cat_cols, _, _, _ = split_columns(df)
+target_list = [x for x in df.columns.to_list() if x in cat_cols]
+target_list.reverse()
+target_selected = st.sidebar.selectbox('Predict', target_list)
 
 X = df.drop(columns=target_selected)
 Y = df[target_selected].values.ravel()
@@ -286,36 +313,16 @@ with row1_2:
         if ((X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected) & (col not in drop_cols)):
             drop_cols.append(col)
 
-    # numerical columns
-    num_cols_extracted = [col for col in X.select_dtypes(include='number').columns]
-    num_cols = []
-    num_cols_missing = []
-    cat_cols = []
-    cat_cols_missing = []
-    for col in num_cols_extracted:
-        if (len(X[col].unique()) < 15):
-            cat_cols.append(col)
-        else:
-            num_cols.append(col)
-
-    # categorical columns
-    obj_cols = [col for col in X.select_dtypes(include=['object']).columns]
-    text_cols = []
-    text_cols_missing = []
-    for col in obj_cols:
-        if (len(X[col].unique()) < 25):
-            cat_cols.append(col)
-        else:
-            text_cols.append(col)
+    num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing = split_columns(X)
 
     # remove dropped columns
-    for element in drop_cols:
-        if element in num_cols:
-            num_cols.remove(element)
-        if element in cat_cols:
-            cat_cols.remove(element)
-        if element in text_cols:
-            text_cols.remove(element)
+    # for element in drop_cols:
+    #     if element in num_cols:
+    #         num_cols.remove(element)
+    #     if element in cat_cols:
+    #         cat_cols.remove(element)
+    #     if element in text_cols:
+    #         text_cols.remove(element)
 
     # display info on dataset
     st.write('Original size of the dataset', X.shape)
@@ -324,7 +331,7 @@ with row1_2:
     st.write('Categorical columns : ', round(100*len(cat_cols)/number_features, 2), '%')
     st.write('Text columns : ', round(100*len(text_cols)/number_features, 2), '%')
 
-    st.write('Total : ', round(100*(len(drop_cols)+len(num_cols)+len(cat_cols)+len(text_cols))/number_features, 2), '%')
+    # st.write('Total : ', round(100*(len(drop_cols)+len(num_cols)+len(cat_cols)+len(text_cols))/number_features, 2), '%')
 
     # create new lists for columns with missing elements
     for col in X.columns:
