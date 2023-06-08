@@ -171,9 +171,9 @@ def get_dim_reduc_algo(algorithm, hyperparameters):
 
 def get_fold(algorithm, nb_splits):
     if algorithm == 'Kfold':
-        return KFold(n_plits=nb_splits, shuffle=True, random_state=0)
+        return KFold(n_splits=nb_splits, shuffle=True, random_state=0)
     if algorithm == 'StratifiedKFold':
-        return StratifiedKFold()
+        return StratifiedKFold(n_splits=nb_splits, shuffle=True, random_state=0)
 
 
 # configuration of the page
