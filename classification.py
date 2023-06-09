@@ -174,6 +174,12 @@ def get_fold(algorithm, nb_splits):
         return KFold(n_plits=nb_splits, shuffle=True, random_state=0)
     if algorithm == 'StratifiedKFold':
         return StratifiedKFold()
+    
+def wrapper_selectbox(label, options, visible=True):
+    if(not visible):
+        return None
+    return st.sidebar.selectbox(label, options)
+
 
 
 # configuration of the page
@@ -260,14 +266,17 @@ missing_value_threshold_selected = st.sidebar.slider('Max missing values in feat
 cols_to_remove = st.sidebar.multiselect('Remove columns', X.columns.to_list())
 
 st.sidebar.subheader('Column transformation')
-categorical_imputer_selected = st.sidebar.selectbox('Handling categorical missing values', [
+
+categorical_imputer = wrapper_selectbox(label, options, visible=True):
+
+categorical_imputer = st.sidebar.selectbox('Handling categorical missing values', [
                                                     'None', 'Most frequent value', 'Delete row'])
-numerical_imputer_selected = st.sidebar.selectbox('Handling numerical missing values', [
+numerical_imputer = st.sidebar.selectbox('Handling numerical missing values', [
                                                   'None', 'Median', 'Mean', 'Delete row'])
 
-encoder_selected = st.sidebar.selectbox('Encoding categorical values', ['None', 'OneHotEncoder'])
-scaler_selected = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
-text_encoder_selected = st.sidebar.selectbox('Encoding text values', ['None', 'CountVectorizer', 'TfidfVectorizer'])
+encoder = st.sidebar.selectbox('Encoding categorical values', ['None', 'OneHotEncoder'])
+scaler = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
+text_encoder = st.sidebar.selectbox('Encoding text values', ['None', 'CountVectorizer', 'TfidfVectorizer'])
 
 st.header('Original dataset')
 
@@ -347,38 +356,38 @@ with row1_2:
 
 # need to make two preprocessing pipeline too handle the case encoding without imputer...
 preprocessing = make_column_transformer(
-    (get_pipeline_missing_cat(categorical_imputer_selected, encoder_selected), cat_cols_missing),
-    (get_pipeline_missing_num(numerical_imputer_selected, scaler_selected), num_cols_missing),
+    (get_pipeline_missing_cat(categorical_imputer, encoder), cat_cols_missing),
+    (get_pipeline_missing_num(numerical_imputer, scaler), num_cols_missing),
 
-    (get_encoding(encoder_selected), cat_cols),
-    (get_encoding(text_encoder_selected), text_cols),
-    (get_scaling(scaler_selected), num_cols)
+    (get_encoding(encoder), cat_cols),
+    (get_encoding(text_encoder), text_cols),
+    (get_scaling(scaler), num_cols)
 )
 
 
 dim = preprocessing.fit_transform(X).shape[1]
-if ((encoder_selected == 'OneHotEncoder') | (dim > 2)):
+if ((encoder == 'OneHotEncoder') | (dim > 2)):
     dim = dim - 1
 
 if (dim > 2):
     st.sidebar.title('Dimension reduction')
-    dimension_reduction_algorithm_selected = st.sidebar.selectbox('Algorithm', ['None', 'Kernel PCA'])
+    dimension_reduction_algorithm = st.sidebar.selectbox('Algorithm', ['None', 'Kernel PCA'])
 
     hyperparameters_dim_reduc = {}
-    # if(dimension_reduction_algorithm_selected == 'PCA'):
+    # if(dimension_reduction_algorithm == 'PCA'):
     #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-    # if(dimension_reduction_algorithm_selected == 'LDA'):
+    # if(dimension_reduction_algorithm == 'LDA'):
     #     hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
-    if (dimension_reduction_algorithm_selected == 'Kernel PCA'):
+    if (dimension_reduction_algorithm == 'Kernel PCA'):
         hyperparameters_dim_reduc['n_components'] = st.sidebar.slider(
             'Number of components (default = nb of features - 1)', 2, dim, dim, 1)
         hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox(
             'Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
-    # if(dimension_reduction_algorithm_selected == 'Truncated SVD'):
+    # if(dimension_reduction_algorithm == 'Truncated SVD'):
     #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
 else:
     st.sidebar.title('Dimension reduction')
-    dimension_reduction_algorithm_selected = st.sidebar.selectbox('Number of features too low', ['None'])
+    dimension_reduction_algorithm = st.sidebar.selectbox('Number of features too low', ['None'])
     hyperparameters_dim_reduc = {}
 
 st.sidebar.title('Cross validation')
@@ -389,12 +398,12 @@ folds = get_fold(type, nb_splits)
 st.sidebar.title('Model selection')
 classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors',
                    'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest']
-classifier_selected = st.sidebar.selectbox('', classifier_list)
+classifier = st.sidebar.selectbox('', classifier_list)
 
 st.sidebar.header('Hyperparameters selection')
 hyperparameters = {}
 
-if (classifier_selected == 'Logistic regression'):
+if (classifier == 'Logistic regression'):
     hyperparameters['solver'] = st.sidebar.selectbox('Solver', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
     if (hyperparameters['solver'] == 'liblinear'):
         hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2'])
@@ -404,26 +413,26 @@ if (classifier_selected == 'Logistic regression'):
         hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l2'])
     hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
 
-if (classifier_selected == 'Ridge classifier'):
+if (classifier == 'Ridge classifier'):
     hyperparameters['alpha'] = st.sidebar.slider('Alpha (default value = 1.0)', 0.0, 10.0, 1.0, 0.1)
     hyperparameters['solver'] = st.sidebar.selectbox(
         'Solver (default = auto)', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga'])
 
-if (classifier_selected == 'K nearest neighbors'):
+if (classifier == 'K nearest neighbors'):
     hyperparameters['n_neighbors'] = st.sidebar.slider('Number of neighbors (default value = 5)', 1, 21, 5, 1)
     hyperparameters['metric'] = st.sidebar.selectbox('Metric (default = minkowski)', [
                                                      'minkowski', 'euclidean', 'manhattan', 'chebyshev'])
     hyperparameters['weights'] = st.sidebar.selectbox('Weights (default = uniform)', ['uniform', 'distance'])
 
-if (classifier_selected == 'Support vector'):
+if (classifier == 'Support vector'):
     hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'linear', 'poly', 'sigmoid'])
     hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
 
-if (classifier_selected == 'Decision tree'):
+if (classifier == 'Decision tree'):
     hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
     hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
 
-if (classifier_selected == 'Random forest'):
+if (classifier == 'Random forest'):
     hyperparameters['n_estimators'] = st.sidebar.slider('Number of estimators (default = 100)', 10, 500, 100, 10)
     hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
     hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
@@ -458,14 +467,14 @@ if (classifier_selected == 'Random forest'):
 
 preprocessing_pipeline = Pipeline([
     ('preprocessing', preprocessing),
-    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm_selected, hyperparameters_dim_reduc))
+    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm, hyperparameters_dim_reduc))
 ])
 
 
 pipeline = Pipeline([
     ('preprocessing', preprocessing),
-    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm_selected, hyperparameters_dim_reduc)),
-    ('ml', get_ml_algorithm(classifier_selected, hyperparameters))
+    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm, hyperparameters_dim_reduc)),
+    ('ml', get_ml_algorithm(classifier, hyperparameters))
 ])
 
 cv_score = cross_val_score(pipeline, X, Y, cv=folds)
