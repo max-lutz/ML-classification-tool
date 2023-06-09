@@ -173,6 +173,7 @@ def get_fold(algorithm, nb_splits):
     if algorithm == 'Kfold':
         return KFold(n_splits=nb_splits, shuffle=True, random_state=0)
     if algorithm == 'StratifiedKFold':
+<<<<<<< HEAD
         return StratifiedKFold(n_splits=nb_splits, shuffle=True, random_state=0)
 
 
@@ -201,6 +202,9 @@ def split_columns(df):
 
     return num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing
 
+=======
+        return StratifiedKFold()
+>>>>>>> 46b03144335cfb992747070f7797a0c3853520e5
     
 def wrapper_selectbox(label, options, visible=True):
     if(not visible):
