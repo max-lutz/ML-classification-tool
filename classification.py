@@ -111,7 +111,8 @@ def get_pipeline_missing_cat(imputer, encoder):
         return 'drop'
     if imputer == 'Most frequent value':
         pipeline = make_pipeline(SimpleImputer(strategy='most_frequent', missing_values=np.nan))
-    pipeline.steps.append(('encoding', get_encoding(encoder)))
+    if (imputer != 'None'):
+        pipeline.steps.append(('encoding', get_encoding(encoder)))
     return pipeline
 
 
@@ -173,7 +174,6 @@ def get_fold(algorithm, nb_splits):
     if algorithm == 'Kfold':
         return KFold(n_splits=nb_splits, shuffle=True, random_state=0)
     if algorithm == 'StratifiedKFold':
-<<<<<<< HEAD
         return StratifiedKFold(n_splits=nb_splits, shuffle=True, random_state=0)
 
 
@@ -191,7 +191,7 @@ def split_columns(df):
             num_cols.append(col)
 
     # categorical columns
-    obj_cols = [col for col in df.select_dtypes(include=['object']).columns]
+    obj_cols = [col for col in df.select_dtypes(exclude=['number']).columns]
     text_cols = []
     text_cols_missing = []
     for col in obj_cols:
@@ -202,15 +202,11 @@ def split_columns(df):
 
     return num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing
 
-=======
-        return StratifiedKFold()
->>>>>>> 46b03144335cfb992747070f7797a0c3853520e5
-    
-def wrapper_selectbox(label, options, visible=True):
-    if(not visible):
-        return None
-    return st.sidebar.selectbox(label, options)
 
+def wrapper_selectbox(label, options, visible=True):
+    if (not visible):
+        return 'None'
+    return st.sidebar.selectbox(label, options)
 
 
 # configuration of the page
@@ -297,73 +293,61 @@ st.sidebar.subheader('Dropping columns')
 missing_value_threshold_selected = st.sidebar.slider('Max missing values in feature (%)', 0, 100, 30, 1)
 cols_to_remove = st.sidebar.multiselect('Remove columns', X.columns.to_list())
 
-st.sidebar.subheader('Column transformation')
 
-categorical_imputer = wrapper_selectbox(label, options, visible=True):
+number_features = len(X.columns)
 
-categorical_imputer = st.sidebar.selectbox('Handling categorical missing values', [
-                                                    'None', 'Most frequent value', 'Delete row'])
-numerical_imputer = st.sidebar.selectbox('Handling numerical missing values', [
-                                                  'None', 'Median', 'Mean', 'Delete row'])
+# feature with missing values
+drop_cols = cols_to_remove
+for col in X.columns:
+    # put the feature in the drop trable if threshold not respected
+    if ((X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected) & (col not in drop_cols)):
+        drop_cols.append(col)
 
-encoder = st.sidebar.selectbox('Encoding categorical values', ['None', 'OneHotEncoder'])
-scaler = st.sidebar.selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'])
-text_encoder = st.sidebar.selectbox('Encoding text values', ['None', 'CountVectorizer', 'TfidfVectorizer'])
+num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing = split_columns(X)
 
-st.header('Original dataset')
+# remove dropped columns
+# for element in drop_cols:
+#     if element in num_cols:
+#         num_cols.remove(element)
+#     if element in cat_cols:
+#         cat_cols.remove(element)
+#     if element in text_cols:
+#         text_cols.remove(element)
 
-row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.columns((SPACER/10, ROW*1.5, SPACER, ROW, SPACER/10))
+# st.write('Total : ', round(100*(len(drop_cols)+len(num_cols)+len(cat_cols)+len(text_cols))/number_features, 2), '%')
 
-with row1_1:
-    st.write(df)
+# create new lists for columns with missing elements
+for col in X.columns:
+    if (col in num_cols and X[col].isna().sum() > 0):
+        num_cols.remove(col)
+        num_cols_missing.append(col)
+    if (col in cat_cols and X[col].isna().sum() > 0):
+        cat_cols.remove(col)
+        cat_cols_missing.append(col)
+    # if (col in text_cols and X[col].isna().sum() > 0):
+    #     text_cols.remove(col)
+    #     text_cols_missing.append(col)
 
-with row1_2:
-    number_features = len(X.columns)
-
-    # feature with missing values
-    drop_cols = cols_to_remove
-    for col in X.columns:
-        # put the feature in the drop trable if threshold not respected
-        if ((X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected) & (col not in drop_cols)):
-            drop_cols.append(col)
-
-    num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing = split_columns(X)
-
-    # remove dropped columns
-    # for element in drop_cols:
-    #     if element in num_cols:
-    #         num_cols.remove(element)
-    #     if element in cat_cols:
-    #         cat_cols.remove(element)
-    #     if element in text_cols:
-    #         text_cols.remove(element)
-
-    # display info on dataset
-    st.write('Original size of the dataset', X.shape)
-    st.write('Dropping ', round(100*len(drop_cols)/number_features, 2), '% of feature for missing values')
-    st.write('Numerical columns : ', round(100*len(num_cols)/number_features, 2), '%')
-    st.write('Categorical columns : ', round(100*len(cat_cols)/number_features, 2), '%')
-    st.write('Text columns : ', round(100*len(text_cols)/number_features, 2), '%')
-
-    # st.write('Total : ', round(100*(len(drop_cols)+len(num_cols)+len(cat_cols)+len(text_cols))/number_features, 2), '%')
-
-    # create new lists for columns with missing elements
-    for col in X.columns:
-        if (col in num_cols and X[col].isna().sum() > 0):
-            num_cols.remove(col)
-            num_cols_missing.append(col)
-        if (col in cat_cols and X[col].isna().sum() > 0):
-            cat_cols.remove(col)
-            cat_cols_missing.append(col)
-        # if (col in text_cols and X[col].isna().sum() > 0):
-        #     text_cols.remove(col)
-        #     text_cols_missing.append(col)
-
-    # combine text columns in one new column because countVectorizer does not accept multiple columns
+# combine text columns in one new column because countVectorizer does not accept multiple columns
+text_cols_original = text_cols
+if (len(text_cols) != 0):
     X['text'] = X[text_cols].astype(str).agg(' '.join, axis=1)
     for cols in text_cols:
         drop_cols.append(cols)
-    text_cols = 'text'
+    text_cols = ['text']
+
+
+st.sidebar.subheader('Column transformation')
+
+categorical_imputer = wrapper_selectbox('Handling categorical missing values',
+                                        ['None', 'Most frequent value', 'Delete row'], len(cat_cols_missing) != 0)
+numerical_imputer = wrapper_selectbox('Handling numerical missing values',
+                                      ['None', 'Median', 'Mean', 'Delete row'], len(num_cols_missing) != 0)
+
+encoder = wrapper_selectbox('Encoding categorical values', ['None', 'OneHotEncoder'], len(cat_cols) != 0)
+scaler = wrapper_selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'], len(num_cols) != 0)
+text_encoder = wrapper_selectbox('Encoding text values',
+                                 ['None', 'CountVectorizer', 'TfidfVectorizer'], len(text_cols) != 0)
 
 
 # need to make two preprocessing pipeline too handle the case encoding without imputer...
@@ -375,6 +359,24 @@ preprocessing = make_column_transformer(
     (get_encoding(text_encoder), text_cols),
     (get_scaling(scaler), num_cols)
 )
+
+st.header('Original dataset')
+
+row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.columns((SPACER/10, ROW*1.5, SPACER, ROW, SPACER/10))
+
+with row1_1:
+    st.write(df)
+
+with row1_2:
+    # display info on dataset
+
+    st.write('Original size of the dataset', X.shape)
+    st.write('Dropping ', len(drop_cols), 'feature for missing values')
+    st.write('Numerical columns : ', len(num_cols))
+    st.write('Categorical columns : ', len(cat_cols))
+    st.write('Numerical columns with missing values : ', len(num_cols_missing))
+    st.write('Categorical columns with missing values: ', len(cat_cols_missing))
+    st.write('Text columns : ', len(text_cols_original))
 
 
 dim = preprocessing.fit_transform(X).shape[1]
@@ -489,7 +491,6 @@ pipeline = Pipeline([
     ('ml', get_ml_algorithm(classifier, hyperparameters))
 ])
 
-cv_score = cross_val_score(pipeline, X, Y, cv=folds)
 preprocessing_pipeline.fit(X)
 X_preprocessed = preprocessing_pipeline.transform(X)
 
@@ -499,7 +500,7 @@ st.write(X_preprocessed)
 # with st.expander("Dataframe preprocessed"):
 #     st.write(X_preprocessed)
 
-
+cv_score = cross_val_score(pipeline, X, Y, cv=folds)
 st.subheader('Results')
 st.write('Accuracy : ', round(cv_score.mean()*100, 2), '%')
 st.write('Standard deviation : ', round(cv_score.std()*100, 2), '%')
