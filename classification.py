@@ -44,7 +44,7 @@ from sklearn.datasets import load_iris, load_diabetes, load_wine
 import joblib
 import streamlit_download_button as button
 
-# Loading the data
+from autosklearn.classification import AutoSklearnClassifier
 
 
 @st.cache_data
@@ -287,34 +287,28 @@ X = df.drop(columns=target_selected)
 Y = df[target_selected].values.ravel()
 
 # Sidebar
-# selection box for the different features
-st.sidebar.title('Preprocessing')
-st.sidebar.subheader('Dropping columns')
-missing_value_threshold_selected = st.sidebar.slider('Max missing values in feature (%)', 0, 100, 30, 1)
-cols_to_remove = st.sidebar.multiselect('Remove columns', X.columns.to_list())
 
+# Allow user to use autml solutions
+st.sidebar.title('AutoML')
+autoML_selected = st.sidebar.selectbox("AutoML algorithm", ["None", "auto-sklearn"])
 
-number_features = len(X.columns)
+if (autoML_selected == 'None'):
+    # selection box for the different features
+    st.sidebar.title('Preprocessing')
+    st.sidebar.subheader('Dropping columns')
+    missing_value_threshold_selected = st.sidebar.slider('Max missing values in feature (%)', 0, 100, 30, 1)
+    cols_to_remove = st.sidebar.multiselect('Remove columns', X.columns.to_list())
 
-# feature with missing values
-drop_cols = cols_to_remove
-for col in X.columns:
-    # put the feature in the drop trable if threshold not respected
-    if ((X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected) & (col not in drop_cols)):
-        drop_cols.append(col)
+    number_features = len(X.columns)
+
+    # feature with missing values
+    drop_cols = cols_to_remove
+    for col in X.columns:
+        # put the feature in the drop trable if threshold not respected
+        if ((X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected) & (col not in drop_cols)):
+            drop_cols.append(col)
 
 num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing = split_columns(X)
-
-# remove dropped columns
-# for element in drop_cols:
-#     if element in num_cols:
-#         num_cols.remove(element)
-#     if element in cat_cols:
-#         cat_cols.remove(element)
-#     if element in text_cols:
-#         text_cols.remove(element)
-
-# st.write('Total : ', round(100*(len(drop_cols)+len(num_cols)+len(cat_cols)+len(text_cols))/number_features, 2), '%')
 
 # create new lists for columns with missing elements
 for col in X.columns:
@@ -324,41 +318,38 @@ for col in X.columns:
     if (col in cat_cols and X[col].isna().sum() > 0):
         cat_cols.remove(col)
         cat_cols_missing.append(col)
-    # if (col in text_cols and X[col].isna().sum() > 0):
-    #     text_cols.remove(col)
-    #     text_cols_missing.append(col)
 
-# combine text columns in one new column because countVectorizer does not accept multiple columns
 text_cols_original = text_cols
-if (len(text_cols) != 0):
-    X['text'] = X[text_cols].astype(str).agg(' '.join, axis=1)
-    for cols in text_cols:
-        drop_cols.append(cols)
-    text_cols = ['text']
+if (autoML_selected == 'None'):
+    # combine text columns in one new column because countVectorizer does not accept multiple columns
+    if (len(text_cols) != 0):
+        X['text'] = X[text_cols].astype(str).agg(' '.join, axis=1)
+        for cols in text_cols:
+            drop_cols.append(cols)
+        text_cols = ['text']
 
+    st.sidebar.subheader('Column transformation')
 
-st.sidebar.subheader('Column transformation')
+    categorical_imputer = wrapper_selectbox('Handling categorical missing values',
+                                            ['None', 'Most frequent value', 'Delete row'], len(cat_cols_missing) != 0)
+    numerical_imputer = wrapper_selectbox('Handling numerical missing values',
+                                          ['None', 'Median', 'Mean', 'Delete row'], len(num_cols_missing) != 0)
 
-categorical_imputer = wrapper_selectbox('Handling categorical missing values',
-                                        ['None', 'Most frequent value', 'Delete row'], len(cat_cols_missing) != 0)
-numerical_imputer = wrapper_selectbox('Handling numerical missing values',
-                                      ['None', 'Median', 'Mean', 'Delete row'], len(num_cols_missing) != 0)
+    encoder = wrapper_selectbox('Encoding categorical values', ['None', 'OneHotEncoder'], len(cat_cols) != 0)
+    scaler = wrapper_selectbox('Scaling', ['None', 'Standard scaler',
+                               'MinMax scaler', 'Robust scaler'], len(num_cols) != 0)
+    text_encoder = wrapper_selectbox('Encoding text values',
+                                     ['None', 'CountVectorizer', 'TfidfVectorizer'], len(text_cols) != 0)
 
-encoder = wrapper_selectbox('Encoding categorical values', ['None', 'OneHotEncoder'], len(cat_cols) != 0)
-scaler = wrapper_selectbox('Scaling', ['None', 'Standard scaler', 'MinMax scaler', 'Robust scaler'], len(num_cols) != 0)
-text_encoder = wrapper_selectbox('Encoding text values',
-                                 ['None', 'CountVectorizer', 'TfidfVectorizer'], len(text_cols) != 0)
+    # need to make two preprocessing pipeline too handle the case encoding without imputer...
+    preprocessing = make_column_transformer(
+        (get_pipeline_missing_cat(categorical_imputer, encoder), cat_cols_missing),
+        (get_pipeline_missing_num(numerical_imputer, scaler), num_cols_missing),
 
-
-# need to make two preprocessing pipeline too handle the case encoding without imputer...
-preprocessing = make_column_transformer(
-    (get_pipeline_missing_cat(categorical_imputer, encoder), cat_cols_missing),
-    (get_pipeline_missing_num(numerical_imputer, scaler), num_cols_missing),
-
-    (get_encoding(encoder), cat_cols),
-    (get_encoding(text_encoder), text_cols),
-    (get_scaling(scaler), num_cols)
-)
+        (get_encoding(encoder), cat_cols),
+        (get_encoding(text_encoder), text_cols),
+        (get_scaling(scaler), num_cols)
+    )
 
 st.header('Original dataset')
 
@@ -371,7 +362,8 @@ with row1_2:
     # display info on dataset
 
     st.write('Original size of the dataset', X.shape)
-    st.write('Dropping ', len(drop_cols), 'feature for missing values')
+    if (autoML_selected == 'None'):
+        st.write('Dropping ', len(drop_cols), 'feature for missing values')
     st.write('Numerical columns : ', len(num_cols))
     st.write('Categorical columns : ', len(cat_cols))
     st.write('Numerical columns with missing values : ', len(num_cols_missing))
@@ -379,77 +371,80 @@ with row1_2:
     st.write('Text columns : ', len(text_cols_original))
 
 
-dim = preprocessing.fit_transform(X).shape[1]
-if ((encoder == 'OneHotEncoder') | (dim > 2)):
-    dim = dim - 1
+if (autoML_selected == 'None'):
+    dim = preprocessing.fit_transform(X).shape[1]
+    if ((encoder == 'OneHotEncoder') | (dim > 2)):
+        dim = dim - 1
 
-if (dim > 2):
-    st.sidebar.title('Dimension reduction')
-    dimension_reduction_algorithm = st.sidebar.selectbox('Algorithm', ['None', 'Kernel PCA'])
+    if (dim > 2):
+        st.sidebar.title('Dimension reduction')
+        dimension_reduction_algorithm = st.sidebar.selectbox('Algorithm', ['None', 'Kernel PCA'])
 
-    hyperparameters_dim_reduc = {}
-    # if(dimension_reduction_algorithm == 'PCA'):
-    #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-    # if(dimension_reduction_algorithm == 'LDA'):
-    #     hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
-    if (dimension_reduction_algorithm == 'Kernel PCA'):
-        hyperparameters_dim_reduc['n_components'] = st.sidebar.slider(
-            'Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-        hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox(
-            'Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
-    # if(dimension_reduction_algorithm == 'Truncated SVD'):
-    #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-else:
-    st.sidebar.title('Dimension reduction')
-    dimension_reduction_algorithm = st.sidebar.selectbox('Number of features too low', ['None'])
-    hyperparameters_dim_reduc = {}
+        hyperparameters_dim_reduc = {}
+        # if(dimension_reduction_algorithm == 'PCA'):
+        #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+        # if(dimension_reduction_algorithm == 'LDA'):
+        #     hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
+        if (dimension_reduction_algorithm == 'Kernel PCA'):
+            hyperparameters_dim_reduc['n_components'] = st.sidebar.slider(
+                'Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+            hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox(
+                'Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
+        # if(dimension_reduction_algorithm == 'Truncated SVD'):
+        #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
+    else:
+        st.sidebar.title('Dimension reduction')
+        dimension_reduction_algorithm = st.sidebar.selectbox('Number of features too low', ['None'])
+        hyperparameters_dim_reduc = {}
 
 st.sidebar.title('Cross validation')
 type = st.sidebar.selectbox('Type', ['KFold', 'StratifiedKFold'])
 nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
 folds = get_fold(type, nb_splits)
 
-st.sidebar.title('Model selection')
-classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors',
-                   'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest']
-classifier = st.sidebar.selectbox('', classifier_list)
+if (autoML_selected == 'None'):
+    st.sidebar.title('Model selection')
+    classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors',
+                       'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest']
+    classifier = st.sidebar.selectbox('', classifier_list)
 
-st.sidebar.header('Hyperparameters selection')
-hyperparameters = {}
+    st.sidebar.header('Hyperparameters selection')
+    hyperparameters = {}
 
-if (classifier == 'Logistic regression'):
-    hyperparameters['solver'] = st.sidebar.selectbox('Solver', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
-    if (hyperparameters['solver'] == 'liblinear'):
-        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2'])
-    if (hyperparameters['solver'] == 'saga'):
-        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2', 'elasticnet'])
-    else:
-        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l2'])
-    hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
+    if (classifier == 'Logistic regression'):
+        hyperparameters['solver'] = st.sidebar.selectbox('Solver', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
+        if (hyperparameters['solver'] == 'liblinear'):
+            hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2'])
+        if (hyperparameters['solver'] == 'saga'):
+            hyperparameters['penalty'] = st.sidebar.selectbox(
+                'Penalty (default = l2)', ['none', 'l1', 'l2', 'elasticnet'])
+        else:
+            hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l2'])
+        hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
 
-if (classifier == 'Ridge classifier'):
-    hyperparameters['alpha'] = st.sidebar.slider('Alpha (default value = 1.0)', 0.0, 10.0, 1.0, 0.1)
-    hyperparameters['solver'] = st.sidebar.selectbox(
-        'Solver (default = auto)', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga'])
+    if (classifier == 'Ridge classifier'):
+        hyperparameters['alpha'] = st.sidebar.slider('Alpha (default value = 1.0)', 0.0, 10.0, 1.0, 0.1)
+        hyperparameters['solver'] = st.sidebar.selectbox(
+            'Solver (default = auto)', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga'])
 
-if (classifier == 'K nearest neighbors'):
-    hyperparameters['n_neighbors'] = st.sidebar.slider('Number of neighbors (default value = 5)', 1, 21, 5, 1)
-    hyperparameters['metric'] = st.sidebar.selectbox('Metric (default = minkowski)', [
-                                                     'minkowski', 'euclidean', 'manhattan', 'chebyshev'])
-    hyperparameters['weights'] = st.sidebar.selectbox('Weights (default = uniform)', ['uniform', 'distance'])
+    if (classifier == 'K nearest neighbors'):
+        hyperparameters['n_neighbors'] = st.sidebar.slider('Number of neighbors (default value = 5)', 1, 21, 5, 1)
+        hyperparameters['metric'] = st.sidebar.selectbox('Metric (default = minkowski)', [
+            'minkowski', 'euclidean', 'manhattan', 'chebyshev'])
+        hyperparameters['weights'] = st.sidebar.selectbox('Weights (default = uniform)', ['uniform', 'distance'])
 
-if (classifier == 'Support vector'):
-    hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'linear', 'poly', 'sigmoid'])
-    hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
+    if (classifier == 'Support vector'):
+        hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'linear', 'poly', 'sigmoid'])
+        hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
 
-if (classifier == 'Decision tree'):
-    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
-    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
+    if (classifier == 'Decision tree'):
+        hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
+        hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
 
-if (classifier == 'Random forest'):
-    hyperparameters['n_estimators'] = st.sidebar.slider('Number of estimators (default = 100)', 10, 500, 100, 10)
-    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
-    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
+    if (classifier == 'Random forest'):
+        hyperparameters['n_estimators'] = st.sidebar.slider('Number of estimators (default = 100)', 10, 500, 100, 10)
+        hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
+        hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
 
 # with st.expander("Original dataframe"):
 #     st.write(df)
@@ -479,26 +474,28 @@ if (classifier == 'Random forest'):
 
 # folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
 
-preprocessing_pipeline = Pipeline([
-    ('preprocessing', preprocessing),
-    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm, hyperparameters_dim_reduc))
-])
+if (autoML_selected == 'None'):
+    preprocessing_pipeline = Pipeline([
+        ('preprocessing', preprocessing),
+        ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm, hyperparameters_dim_reduc))
+    ])
 
+    pipeline = Pipeline([
+        ('preprocessing', preprocessing),
+        ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm, hyperparameters_dim_reduc)),
+        ('ml', get_ml_algorithm(classifier, hyperparameters))
+    ])
 
-pipeline = Pipeline([
-    ('preprocessing', preprocessing),
-    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm, hyperparameters_dim_reduc)),
-    ('ml', get_ml_algorithm(classifier, hyperparameters))
-])
+    preprocessing_pipeline.fit(X)
+    X_preprocessed = preprocessing_pipeline.transform(X)
 
-preprocessing_pipeline.fit(X)
-X_preprocessed = preprocessing_pipeline.transform(X)
+    st.header('Preprocessed dataset')
+    st.write(X_preprocessed)
 
-st.header('Preprocessed dataset')
-st.write(X_preprocessed)
-
-# with st.expander("Dataframe preprocessed"):
-#     st.write(X_preprocessed)
+if (autoML_selected == "auto-sklearn"):
+    pipeline = AutoSklearnClassifier(time_left_for_this_task=2*60, per_run_time_limit=30, n_jobs=8)
+    pipeline.fit(X, Y)
+    st.text(pipeline.sprint_statistics())
 
 cv_score = cross_val_score(pipeline, X, Y, cv=folds)
 st.subheader('Results')
