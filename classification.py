@@ -334,7 +334,7 @@ if (len(text_cols) != 0):
     X['text'] = X[text_cols].astype(str).agg(' '.join, axis=1)
     for cols in text_cols:
         drop_cols.append(cols)
-    text_cols = ['text']
+    text_cols = "text"
 
 
 st.sidebar.subheader('Column transformation')
@@ -377,7 +377,6 @@ with row1_2:
     st.write('Numerical columns with missing values : ', len(num_cols_missing))
     st.write('Categorical columns with missing values: ', len(cat_cols_missing))
     st.write('Text columns : ', len(text_cols_original))
-
 
 dim = preprocessing.fit_transform(X).shape[1]
 if ((encoder == 'OneHotEncoder') | (dim > 2)):
@@ -495,7 +494,10 @@ preprocessing_pipeline.fit(X)
 X_preprocessed = preprocessing_pipeline.transform(X)
 
 st.header('Preprocessed dataset')
-st.write(X_preprocessed)
+if (X_preprocessed.shape[1] > 100):
+    st.text(f'Processed dataframe is too big to display, shape: {X_preprocessed.shape}')
+else:
+    st.write(X_preprocessed)
 
 # with st.expander("Dataframe preprocessed"):
 #     st.write(X_preprocessed)
