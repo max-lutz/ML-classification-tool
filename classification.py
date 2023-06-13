@@ -457,6 +457,17 @@ if (classifier == 'Random forest'):
     hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
     hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
 
+if (classifier == 'XGBoost'):
+    hyperparameters['booster'] = st.sidebar.selectbox('Algorithm (default = gbtree)', ['gbtree', 'dart', 'gblinear'])
+    hyperparameters['n_estimators'] = st.sidebar.slider('Number of tree (default = 100)', 10, 500, 100, 10)
+    hyperparameters['eta'] = st.sidebar.slider('Learning rate (default = 0.3)', 0.01, 1.0, 0.3, 0.01)
+    hyperparameters['max_depth'] = st.sidebar.slider('Maximum depth of trees (default = 6)', 0, 15, 6, 1)
+
+if (classifier == 'LightGBM'):
+    hyperparameters['booster'] = st.sidebar.slider('Booster (default = 100)', 10, 500, 100, 10)
+    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
+    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
+
 # with st.expander("Original dataframe"):
 #     st.write(df)
 
