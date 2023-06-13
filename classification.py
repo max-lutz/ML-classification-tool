@@ -44,6 +44,9 @@ from sklearn.datasets import load_iris, load_diabetes, load_wine
 import joblib
 import streamlit_download_button as button
 
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+
 # Loading the data
 
 
@@ -155,6 +158,10 @@ def get_ml_algorithm(algorithm, hyperparameters):
         return DecisionTreeClassifier(criterion=hyperparameters['criterion'], min_samples_split=hyperparameters['min_samples_split'])
     if algorithm == 'Random forest':
         return RandomForestClassifier(n_estimators=hyperparameters['n_estimators'], criterion=hyperparameters['criterion'], min_samples_split=hyperparameters['min_samples_split'])
+    if algorithm == 'XGBoost':
+        return XGBClassifier()
+    if algorithm == 'LightGBM':
+        return LGBMClassifier()
 
 
 def get_dim_reduc_algo(algorithm, hyperparameters):
@@ -410,7 +417,7 @@ folds = get_fold(type, nb_splits)
 
 st.sidebar.title('Model selection')
 classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors',
-                   'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest']
+                   'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest', 'XGBoost', 'LightGBM']
 classifier = st.sidebar.selectbox('', classifier_list)
 
 st.sidebar.header('Hyperparameters selection')
