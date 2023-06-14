@@ -2,43 +2,26 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
+import joblib
 
-from sklearn.preprocessing import OrdinalEncoder
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.preprocessing import RobustScaler
-
+from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder, StandardScaler, MinMaxScaler, RobustScaler
 from sklearn.impute import SimpleImputer
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfVectorizer
-
-from sklearn.pipeline import make_pipeline
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.compose import make_column_transformer
-from sklearn.pipeline import Pipeline
-
-from sklearn.model_selection import KFold
-from sklearn.model_selection import StratifiedKFold
-from sklearn.model_selection import cross_val_score
-
+from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import RidgeClassifier
-
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-from sklearn.decomposition import KernelPCA
-from sklearn.decomposition import TruncatedSVD
-
+from sklearn.decomposition import KernelPCA, TruncatedSVD
 from sklearn.datasets import load_iris, load_diabetes, load_wine
 
-import joblib
 import streamlit_download_button as button
-
-# Loading the data
 
 
 @st.cache_data
@@ -92,9 +75,9 @@ def get_pipeline_missing_num(imputer, scaler):
     if imputer == 'None':
         return 'drop'
     if imputer == 'Mean':
-        pipeline = make_pipeline(SimpleImputer(strategy='mean', missing_values=np.nan))
+        pipeline = make_pipeline(get_imputer(imputer))
     if imputer == 'Median':
-        pipeline = make_pipeline(SimpleImputer(strategy='median', missing_values=np.nan))
+        pipeline = make_pipeline(get_imputer(imputer))
     if (scaler != 'None'):
         pipeline.steps.append(('scaling', get_scaling(scaler)))
     return pipeline
@@ -104,7 +87,7 @@ def get_pipeline_missing_cat(imputer, encoder):
     if imputer == 'None' or encoder == 'None':
         return 'drop'
     if imputer == 'Most frequent value':
-        pipeline = make_pipeline(SimpleImputer(strategy='most_frequent', missing_values=np.nan))
+        pipeline = make_pipeline(get_imputer(imputer))
     if (imputer != 'None'):
         pipeline.steps.append(('encoding', get_encoding(encoder)))
     return pipeline
