@@ -23,6 +23,9 @@ from sklearn.datasets import load_iris, load_diabetes, load_wine
 
 import streamlit_download_button as button
 
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+
 
 @st.cache_data
 def get_data_heart_disease():
@@ -130,6 +133,10 @@ def get_ml_algorithm(algorithm, hyperparameters):
         return DecisionTreeClassifier(criterion=hyperparameters['criterion'], min_samples_split=hyperparameters['min_samples_split'])
     if algorithm == 'Random forest':
         return RandomForestClassifier(n_estimators=hyperparameters['n_estimators'], criterion=hyperparameters['criterion'], min_samples_split=hyperparameters['min_samples_split'])
+    if algorithm == 'XGBoost':
+        return XGBClassifier()
+    if algorithm == 'LightGBM':
+        return LGBMClassifier()
 
 
 def get_dim_reduc_algo(algorithm, hyperparameters):
@@ -353,7 +360,7 @@ folds = get_fold(type, nb_splits)
 
 st.sidebar.title('Model selection')
 classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors',
-                   'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest']
+                   'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest', 'XGBoost', 'LightGBM']
 classifier = st.sidebar.selectbox('', classifier_list)
 
 st.sidebar.header('Hyperparameters selection')
@@ -392,6 +399,16 @@ if (classifier == 'Random forest'):
     hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
     hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
 
+if (classifier == 'XGBoost'):
+    hyperparameters['booster'] = st.sidebar.selectbox('Algorithm (default = gbtree)', ['gbtree', 'dart', 'gblinear'])
+    hyperparameters['n_estimators'] = st.sidebar.slider('Number of tree (default = 100)', 10, 500, 100, 10)
+    hyperparameters['eta'] = st.sidebar.slider('Learning rate (default = 0.3)', 0.01, 1.0, 0.3, 0.01)
+    hyperparameters['max_depth'] = st.sidebar.slider('Maximum depth of trees (default = 6)', 0, 15, 6, 1)
+
+if (classifier == 'LightGBM'):
+    hyperparameters['num_leaves'] = st.sidebar.slider('Number of leaves (default = 31)', 2, 100, 31, 1)
+    hyperparameters['max_depth'] = st.sidebar.slider('Maximum depth (default = -1 (no limit))', -1, 200, -1, 2)
+    hyperparameters['learning_rate'] = st.sidebar.slider('Learning rate (default = 0.1)', 0.01, 1.0, 0.1, 0.01)
 
 preprocessing_pipeline = Pipeline([
     ('preprocessing', preprocessing),
