@@ -1,53 +1,30 @@
-# TODO :
-# - add the option of uploading your own csv file
-# - improve documentation
-
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import os
+import joblib
 
-from sklearn.preprocessing import OrdinalEncoder
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.preprocessing import RobustScaler
-
+from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder, StandardScaler, MinMaxScaler, RobustScaler
 from sklearn.impute import SimpleImputer
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfVectorizer
-
-from sklearn.pipeline import make_pipeline
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.compose import make_column_transformer
-from sklearn.pipeline import Pipeline
-
-from sklearn.model_selection import KFold
-from sklearn.model_selection import StratifiedKFold
-from sklearn.model_selection import cross_val_score
-
+from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import RidgeClassifier
-
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-from sklearn.decomposition import KernelPCA
-from sklearn.decomposition import TruncatedSVD
-
+from sklearn.decomposition import KernelPCA, TruncatedSVD
 from sklearn.datasets import load_iris, load_diabetes, load_wine
 
-import joblib
 import streamlit_download_button as button
 
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
-
-# Loading the data
 
 
 @st.cache_data
@@ -101,9 +78,9 @@ def get_pipeline_missing_num(imputer, scaler):
     if imputer == 'None':
         return 'drop'
     if imputer == 'Mean':
-        pipeline = make_pipeline(SimpleImputer(strategy='mean', missing_values=np.nan))
+        pipeline = make_pipeline(get_imputer(imputer))
     if imputer == 'Median':
-        pipeline = make_pipeline(SimpleImputer(strategy='median', missing_values=np.nan))
+        pipeline = make_pipeline(get_imputer(imputer))
     if (scaler != 'None'):
         pipeline.steps.append(('scaling', get_scaling(scaler)))
     return pipeline
@@ -113,7 +90,7 @@ def get_pipeline_missing_cat(imputer, encoder):
     if imputer == 'None' or encoder == 'None':
         return 'drop'
     if imputer == 'Most frequent value':
-        pipeline = make_pipeline(SimpleImputer(strategy='most_frequent', missing_values=np.nan))
+        pipeline = make_pipeline(get_imputer(imputer))
     if (imputer != 'None'):
         pipeline.steps.append(('encoding', get_encoding(encoder)))
     return pipeline
@@ -148,8 +125,6 @@ def get_ml_algorithm(algorithm, hyperparameters):
         return LogisticRegression(solver=hyperparameters['solver'])
     if algorithm == 'Support vector':
         return SVC(kernel=hyperparameters['kernel'], C=hyperparameters['C'])
-    if algorithm == 'Naive bayes':
-        return GaussianNB()
     if algorithm == 'K nearest neighbors':
         return KNeighborsClassifier(n_neighbors=hyperparameters['n_neighbors'], metric=hyperparameters['metric'], weights=hyperparameters['weights'])
     if algorithm == 'Ridge classifier':
@@ -184,9 +159,9 @@ def get_fold(algorithm, nb_splits):
         return StratifiedKFold(n_splits=nb_splits, shuffle=True, random_state=0)
 
 
-def split_columns(df):
+def split_columns(df, drop_cols=[]):
     # numerical columns
-    num_cols_extracted = [col for col in df.select_dtypes(include='number').columns]
+    num_cols_extracted = [col for col in df.select_dtypes(include='number').columns if col not in drop_cols]
     num_cols = []
     num_cols_missing = []
     cat_cols = []
@@ -198,9 +173,8 @@ def split_columns(df):
             num_cols.append(col)
 
     # categorical columns
-    obj_cols = [col for col in df.select_dtypes(exclude=['number']).columns]
+    obj_cols = [col for col in df.select_dtypes(exclude=['number']).columns if col not in drop_cols]
     text_cols = []
-    text_cols_missing = []
     for col in obj_cols:
         if (len(df[col].unique()) < 25):
             cat_cols.append(col)
@@ -208,6 +182,27 @@ def split_columns(df):
             text_cols.append(col)
 
     return num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing
+
+
+def load_dataset(dataset):
+    if (dataset == 'Load my own dataset'):
+        uploaded_file = st.file_uploader('File uploader')
+        if uploaded_file is not None:
+            df = pd.read_csv(uploaded_file)
+    elif (dataset == 'Titanic dataset'):
+        df = get_data_titanic()
+    elif (dataset == 'Heart disease dataset'):
+        df = get_data_heart_disease()
+    elif (dataset == 'Iris dataset'):
+        df = load_iris(as_frame=True).data
+        df["target"] = load_iris(as_frame=True).target
+    elif (dataset == 'Diabetes dataset'):
+        df = load_diabetes(as_frame=True).data
+        df["target"] = load_diabetes(as_frame=True).target
+    elif (dataset == 'Wine dataset'):
+        df = load_wine(as_frame=True).data
+        df["target"] = load_wine(as_frame=True).target
+    return df
 
 
 def wrapper_selectbox(label, options, visible=True):
@@ -218,8 +213,6 @@ def wrapper_selectbox(label, options, visible=True):
 
 # configuration of the page
 st.set_page_config(layout="wide")
-# matplotlib.use("agg")
-# _lock = RendererAgg.lock
 
 SPACER = .2
 ROW = 1
@@ -232,7 +225,6 @@ with title:
             to classify passengers from the Titanic dataset!
             The dataset is composed of passengers from the Titanic and if they survived or not.
             * Use the menu on the left to select ML algorithm and hyperparameters
-            * Data source : [titanic dataset](https://www.kaggle.com/c/titanic/data?select=train.csv).
             * The code can be accessed at [code](https://github.com/max-lutz/ML-exploration-tool).
             * Click on how to use this app to get more explanation.
             """)
@@ -256,34 +248,10 @@ with title_2:
 
 
 st.write("")
-
-# Data source (accessed mid may 2021): [heart disease dataset](https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive).
-
 dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset', 'Iris dataset',
                                           'Diabetes dataset', 'Wine dataset', 'Load my own dataset'])
-if (dataset == 'Load my own dataset'):
-    uploaded_file = st.file_uploader('File uploader')
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-elif (dataset == 'Titanic dataset'):
-    df = get_data_titanic()
-elif (dataset == 'Heart disease dataset'):
-    df = get_data_heart_disease()
-elif (dataset == 'Iris dataset'):
-    df = load_iris(as_frame=True).data
-    df["target"] = load_iris(as_frame=True).target
-elif (dataset == 'Diabetes dataset'):
-    df = load_diabetes(as_frame=True).data
-    df["target"] = load_diabetes(as_frame=True).target
-elif (dataset == 'Wine dataset'):
-    df = load_wine(as_frame=True).data
-    df["target"] = load_wine(as_frame=True).target
+df = load_dataset(dataset)
 
-# df = get_data_titanic()
-
-# st.write(df)
-
-# target_selected = 'Survived'
 st.sidebar.header('Select feature to predict')
 _, cat_cols, _, _, _ = split_columns(df)
 target_list = [x for x in df.columns.to_list() if x in cat_cols]
@@ -300,9 +268,6 @@ st.sidebar.subheader('Dropping columns')
 missing_value_threshold_selected = st.sidebar.slider('Max missing values in feature (%)', 0, 100, 30, 1)
 cols_to_remove = st.sidebar.multiselect('Remove columns', X.columns.to_list())
 
-
-number_features = len(X.columns)
-
 # feature with missing values
 drop_cols = cols_to_remove
 for col in X.columns:
@@ -310,18 +275,8 @@ for col in X.columns:
     if ((X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected) & (col not in drop_cols)):
         drop_cols.append(col)
 
-num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing = split_columns(X)
+num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing = split_columns(X, drop_cols)
 
-# remove dropped columns
-# for element in drop_cols:
-#     if element in num_cols:
-#         num_cols.remove(element)
-#     if element in cat_cols:
-#         cat_cols.remove(element)
-#     if element in text_cols:
-#         text_cols.remove(element)
-
-# st.write('Total : ', round(100*(len(drop_cols)+len(num_cols)+len(cat_cols)+len(text_cols))/number_features, 2), '%')
 
 # create new lists for columns with missing elements
 for col in X.columns:
@@ -331,9 +286,6 @@ for col in X.columns:
     if (col in cat_cols and X[col].isna().sum() > 0):
         cat_cols.remove(col)
         cat_cols_missing.append(col)
-    # if (col in text_cols and X[col].isna().sum() > 0):
-    #     text_cols.remove(col)
-    #     text_cols_missing.append(col)
 
 # combine text columns in one new column because countVectorizer does not accept multiple columns
 text_cols_original = text_cols
@@ -368,15 +320,12 @@ preprocessing = make_column_transformer(
 )
 
 st.header('Original dataset')
-
 row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.columns((SPACER/10, ROW*1.5, SPACER, ROW, SPACER/10))
-
 with row1_1:
     st.write(df)
 
 with row1_2:
     # display info on dataset
-
     st.write('Original size of the dataset', X.shape)
     st.write('Dropping ', len(drop_cols), 'feature for missing values')
     st.write('Numerical columns : ', len(num_cols))
@@ -394,17 +343,11 @@ if (dim > 2):
     dimension_reduction_algorithm = st.sidebar.selectbox('Algorithm', ['None', 'Kernel PCA'])
 
     hyperparameters_dim_reduc = {}
-    # if(dimension_reduction_algorithm == 'PCA'):
-    #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-    # if(dimension_reduction_algorithm == 'LDA'):
-    #     hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
     if (dimension_reduction_algorithm == 'Kernel PCA'):
         hyperparameters_dim_reduc['n_components'] = st.sidebar.slider(
             'Number of components (default = nb of features - 1)', 2, dim, dim, 1)
         hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox(
             'Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
-    # if(dimension_reduction_algorithm == 'Truncated SVD'):
-    #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
 else:
     st.sidebar.title('Dimension reduction')
     dimension_reduction_algorithm = st.sidebar.selectbox('Number of features too low', ['None'])
@@ -422,7 +365,6 @@ classifier = st.sidebar.selectbox('', classifier_list)
 
 st.sidebar.header('Hyperparameters selection')
 hyperparameters = {}
-
 if (classifier == 'Logistic regression'):
     hyperparameters['solver'] = st.sidebar.selectbox('Solver', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
     if (hyperparameters['solver'] == 'liblinear'):
@@ -468,39 +410,10 @@ if (classifier == 'LightGBM'):
     hyperparameters['max_depth'] = st.sidebar.slider('Maximum depth (default = -1 (no limit))', -1, 200, -1, 2)
     hyperparameters['learning_rate'] = st.sidebar.slider('Learning rate (default = 0.1)', 0.01, 1.0, 0.1, 0.01)
 
-# with st.expander("Original dataframe"):
-#     st.write(df)
-
-# with st.expander("Pairplot dataframe"), _lock:
-#     fig = sns.pairplot(df, hue='target')
-#     st.pyplot(fig)
-
-# with st.expander("Correlation matrix"):
-#     row_spacer3_1, row3_1, row_spacer3_2, row3_2, row_spacer3_3 = st.columns((SPACER, ROW, SPACER, ROW/2, SPACER))
-#     # Compute the correlation matrix
-#     corr = df.corr()
-#     # Generate a mask for the upper triangle
-#     mask = np.triu(np.ones_like(corr, dtype=bool))
-#     # Set up the matplotlib figure
-#     fig, ax = plt.subplots(figsize=(5, 5))
-#     # Generate a custom diverging colormap
-#     cmap = sns.diverging_palette(230, 20, as_cmap=True)
-#     # Draw the heatmap with the mask and correct aspect ratio
-#     ax = sns.heatmap(corr, mask=mask, cmap=cmap, square=True)
-#     with row3_1, _lock:
-#         st.pyplot(fig)
-
-#     with row3_2:
-#         st.write('Some text explaining the plot')
-
-
-# folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
-
 preprocessing_pipeline = Pipeline([
     ('preprocessing', preprocessing),
     ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm, hyperparameters_dim_reduc))
 ])
-
 
 pipeline = Pipeline([
     ('preprocessing', preprocessing),
@@ -516,9 +429,6 @@ if (X_preprocessed.shape[1] > 100):
     st.text(f'Processed dataframe is too big to display, shape: {X_preprocessed.shape}')
 else:
     st.write(X_preprocessed)
-
-# with st.expander("Dataframe preprocessed"):
-#     st.write(X_preprocessed)
 
 cv_score = cross_val_score(pipeline, X, Y, cv=folds)
 st.subheader('Results')
@@ -536,13 +446,14 @@ with st.expander('How to use the model you downloaded'):
 
     with row2_1:
         st.write('''Put the classification.model file in your working directory
-                copy paste the code below in your notebook/code and make sure df is in the right format, with the right number of columns.
+                copy paste the code below in your notebook/code and make sure df is in the right format, 
+                with the right number of columns.
             ''')
         st.code('''
-import joblib
-pipeline = joblib.load('classification.model')
-prediction = pipeline.predict(df)
-print(prediction)
+                import joblib
+                pipeline = joblib.load('classification.model')
+                prediction = pipeline.predict(df)
+                print(prediction)
         ''')
 
     with row2_2:
