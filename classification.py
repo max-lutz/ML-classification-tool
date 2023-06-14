@@ -152,9 +152,9 @@ def get_fold(algorithm, nb_splits):
         return StratifiedKFold(n_splits=nb_splits, shuffle=True, random_state=0)
 
 
-def split_columns(df):
+def split_columns(df, drop_cols=[]):
     # numerical columns
-    num_cols_extracted = [col for col in df.select_dtypes(include='number').columns]
+    num_cols_extracted = [col for col in df.select_dtypes(include='number').columns if col not in drop_cols]
     num_cols = []
     num_cols_missing = []
     cat_cols = []
@@ -166,9 +166,8 @@ def split_columns(df):
             num_cols.append(col)
 
     # categorical columns
-    obj_cols = [col for col in df.select_dtypes(exclude=['number']).columns]
+    obj_cols = [col for col in df.select_dtypes(exclude=['number']).columns if col not in drop_cols]
     text_cols = []
-    text_cols_missing = []
     for col in obj_cols:
         if (len(df[col].unique()) < 25):
             cat_cols.append(col)
@@ -176,6 +175,27 @@ def split_columns(df):
             text_cols.append(col)
 
     return num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing
+
+
+def load_dataset(dataset):
+    if (dataset == 'Load my own dataset'):
+        uploaded_file = st.file_uploader('File uploader')
+        if uploaded_file is not None:
+            df = pd.read_csv(uploaded_file)
+    elif (dataset == 'Titanic dataset'):
+        df = get_data_titanic()
+    elif (dataset == 'Heart disease dataset'):
+        df = get_data_heart_disease()
+    elif (dataset == 'Iris dataset'):
+        df = load_iris(as_frame=True).data
+        df["target"] = load_iris(as_frame=True).target
+    elif (dataset == 'Diabetes dataset'):
+        df = load_diabetes(as_frame=True).data
+        df["target"] = load_diabetes(as_frame=True).target
+    elif (dataset == 'Wine dataset'):
+        df = load_wine(as_frame=True).data
+        df["target"] = load_wine(as_frame=True).target
+    return df
 
 
 def wrapper_selectbox(label, options, visible=True):
@@ -223,24 +243,7 @@ with title_2:
 st.write("")
 dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset', 'Iris dataset',
                                           'Diabetes dataset', 'Wine dataset', 'Load my own dataset'])
-if (dataset == 'Load my own dataset'):
-    uploaded_file = st.file_uploader('File uploader')
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-elif (dataset == 'Titanic dataset'):
-    df = get_data_titanic()
-elif (dataset == 'Heart disease dataset'):
-    df = get_data_heart_disease()
-elif (dataset == 'Iris dataset'):
-    df = load_iris(as_frame=True).data
-    df["target"] = load_iris(as_frame=True).target
-elif (dataset == 'Diabetes dataset'):
-    df = load_diabetes(as_frame=True).data
-    df["target"] = load_diabetes(as_frame=True).target
-elif (dataset == 'Wine dataset'):
-    df = load_wine(as_frame=True).data
-    df["target"] = load_wine(as_frame=True).target
-
+df = load_dataset(dataset)
 
 st.sidebar.header('Select feature to predict')
 _, cat_cols, _, _, _ = split_columns(df)
@@ -258,9 +261,6 @@ st.sidebar.subheader('Dropping columns')
 missing_value_threshold_selected = st.sidebar.slider('Max missing values in feature (%)', 0, 100, 30, 1)
 cols_to_remove = st.sidebar.multiselect('Remove columns', X.columns.to_list())
 
-
-number_features = len(X.columns)
-
 # feature with missing values
 drop_cols = cols_to_remove
 for col in X.columns:
@@ -268,7 +268,7 @@ for col in X.columns:
     if ((X[col].isna().sum()/len(X)*100 > missing_value_threshold_selected) & (col not in drop_cols)):
         drop_cols.append(col)
 
-num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing = split_columns(X)
+num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing = split_columns(X, drop_cols)
 
 
 # create new lists for columns with missing elements
@@ -313,15 +313,12 @@ preprocessing = make_column_transformer(
 )
 
 st.header('Original dataset')
-
 row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.columns((SPACER/10, ROW*1.5, SPACER, ROW, SPACER/10))
-
 with row1_1:
     st.write(df)
 
 with row1_2:
     # display info on dataset
-
     st.write('Original size of the dataset', X.shape)
     st.write('Dropping ', len(drop_cols), 'feature for missing values')
     st.write('Numerical columns : ', len(num_cols))
@@ -339,17 +336,11 @@ if (dim > 2):
     dimension_reduction_algorithm = st.sidebar.selectbox('Algorithm', ['None', 'Kernel PCA'])
 
     hyperparameters_dim_reduc = {}
-    # if(dimension_reduction_algorithm == 'PCA'):
-    #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
-    # if(dimension_reduction_algorithm == 'LDA'):
-    #     hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox('Solver (default = svd)', ['svd', 'lsqr', 'eigen'])
     if (dimension_reduction_algorithm == 'Kernel PCA'):
         hyperparameters_dim_reduc['n_components'] = st.sidebar.slider(
             'Number of components (default = nb of features - 1)', 2, dim, dim, 1)
         hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox(
             'Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
-    # if(dimension_reduction_algorithm == 'Truncated SVD'):
-    #     hyperparameters_dim_reduc['n_components'] = st.sidebar.slider('Number of components (default = nb of features - 1)', 2, dim, dim, 1)
 else:
     st.sidebar.title('Dimension reduction')
     dimension_reduction_algorithm = st.sidebar.selectbox('Number of features too low', ['None'])
@@ -367,7 +358,6 @@ classifier = st.sidebar.selectbox('', classifier_list)
 
 st.sidebar.header('Hyperparameters selection')
 hyperparameters = {}
-
 if (classifier == 'Logistic regression'):
     hyperparameters['solver'] = st.sidebar.selectbox('Solver', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
     if (hyperparameters['solver'] == 'liblinear'):
