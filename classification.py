@@ -464,9 +464,9 @@ if (classifier == 'XGBoost'):
     hyperparameters['max_depth'] = st.sidebar.slider('Maximum depth of trees (default = 6)', 0, 15, 6, 1)
 
 if (classifier == 'LightGBM'):
-    hyperparameters['booster'] = st.sidebar.slider('Booster (default = 100)', 10, 500, 100, 10)
-    hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
-    hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
+    hyperparameters['num_leaves'] = st.sidebar.slider('Number of leaves (default = 31)', 2, 100, 31, 1)
+    hyperparameters['max_depth'] = st.sidebar.slider('Maximum depth (default = -1 (no limit))', -1, 200, -1, 2)
+    hyperparameters['learning_rate'] = st.sidebar.slider('Learning rate (default = 0.1)', 0.01, 1.0, 0.1, 0.01)
 
 # with st.expander("Original dataframe"):
 #     st.write(df)
