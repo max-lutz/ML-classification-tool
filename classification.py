@@ -1,8 +1,3 @@
-# TODO :
-# - add the option of uploading your own csv file
-# - improve documentation
-
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -28,7 +23,6 @@ from sklearn.model_selection import cross_val_score
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
-from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -145,8 +139,6 @@ def get_ml_algorithm(algorithm, hyperparameters):
         return LogisticRegression(solver=hyperparameters['solver'])
     if algorithm == 'Support vector':
         return SVC(kernel=hyperparameters['kernel'], C=hyperparameters['C'])
-    if algorithm == 'Naive bayes':
-        return GaussianNB()
     if algorithm == 'K nearest neighbors':
         return KNeighborsClassifier(n_neighbors=hyperparameters['n_neighbors'], metric=hyperparameters['metric'], weights=hyperparameters['weights'])
     if algorithm == 'Ridge classifier':
@@ -211,8 +203,6 @@ def wrapper_selectbox(label, options, visible=True):
 
 # configuration of the page
 st.set_page_config(layout="wide")
-# matplotlib.use("agg")
-# _lock = RendererAgg.lock
 
 SPACER = .2
 ROW = 1
@@ -225,7 +215,6 @@ with title:
             to classify passengers from the Titanic dataset!
             The dataset is composed of passengers from the Titanic and if they survived or not.
             * Use the menu on the left to select ML algorithm and hyperparameters
-            * Data source : [titanic dataset](https://www.kaggle.com/c/titanic/data?select=train.csv).
             * The code can be accessed at [code](https://github.com/max-lutz/ML-exploration-tool).
             * Click on how to use this app to get more explanation.
             """)
@@ -249,9 +238,6 @@ with title_2:
 
 
 st.write("")
-
-# Data source (accessed mid may 2021): [heart disease dataset](https://ieee-dataport.org/open-access/heart-disease-dataset-comprehensive).
-
 dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset', 'Iris dataset',
                                           'Diabetes dataset', 'Wine dataset', 'Load my own dataset'])
 if (dataset == 'Load my own dataset'):
@@ -272,11 +258,7 @@ elif (dataset == 'Wine dataset'):
     df = load_wine(as_frame=True).data
     df["target"] = load_wine(as_frame=True).target
 
-# df = get_data_titanic()
 
-# st.write(df)
-
-# target_selected = 'Survived'
 st.sidebar.header('Select feature to predict')
 _, cat_cols, _, _, _ = split_columns(df)
 target_list = [x for x in df.columns.to_list() if x in cat_cols]
@@ -305,16 +287,6 @@ for col in X.columns:
 
 num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing = split_columns(X)
 
-# remove dropped columns
-# for element in drop_cols:
-#     if element in num_cols:
-#         num_cols.remove(element)
-#     if element in cat_cols:
-#         cat_cols.remove(element)
-#     if element in text_cols:
-#         text_cols.remove(element)
-
-# st.write('Total : ', round(100*(len(drop_cols)+len(num_cols)+len(cat_cols)+len(text_cols))/number_features, 2), '%')
 
 # create new lists for columns with missing elements
 for col in X.columns:
@@ -324,9 +296,6 @@ for col in X.columns:
     if (col in cat_cols and X[col].isna().sum() > 0):
         cat_cols.remove(col)
         cat_cols_missing.append(col)
-    # if (col in text_cols and X[col].isna().sum() > 0):
-    #     text_cols.remove(col)
-    #     text_cols_missing.append(col)
 
 # combine text columns in one new column because countVectorizer does not accept multiple columns
 text_cols_original = text_cols
@@ -450,39 +419,11 @@ if (classifier == 'Random forest'):
     hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
     hyperparameters['min_samples_split'] = st.sidebar.slider('Min sample splits (default = 2)', 2, 20, 2, 1)
 
-# with st.expander("Original dataframe"):
-#     st.write(df)
-
-# with st.expander("Pairplot dataframe"), _lock:
-#     fig = sns.pairplot(df, hue='target')
-#     st.pyplot(fig)
-
-# with st.expander("Correlation matrix"):
-#     row_spacer3_1, row3_1, row_spacer3_2, row3_2, row_spacer3_3 = st.columns((SPACER, ROW, SPACER, ROW/2, SPACER))
-#     # Compute the correlation matrix
-#     corr = df.corr()
-#     # Generate a mask for the upper triangle
-#     mask = np.triu(np.ones_like(corr, dtype=bool))
-#     # Set up the matplotlib figure
-#     fig, ax = plt.subplots(figsize=(5, 5))
-#     # Generate a custom diverging colormap
-#     cmap = sns.diverging_palette(230, 20, as_cmap=True)
-#     # Draw the heatmap with the mask and correct aspect ratio
-#     ax = sns.heatmap(corr, mask=mask, cmap=cmap, square=True)
-#     with row3_1, _lock:
-#         st.pyplot(fig)
-
-#     with row3_2:
-#         st.write('Some text explaining the plot')
-
-
-# folds = KFold(n_splits=nb_splits, shuffle=True, random_state=rdm_state)
 
 preprocessing_pipeline = Pipeline([
     ('preprocessing', preprocessing),
     ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm, hyperparameters_dim_reduc))
 ])
-
 
 pipeline = Pipeline([
     ('preprocessing', preprocessing),
@@ -498,9 +439,6 @@ if (X_preprocessed.shape[1] > 100):
     st.text(f'Processed dataframe is too big to display, shape: {X_preprocessed.shape}')
 else:
     st.write(X_preprocessed)
-
-# with st.expander("Dataframe preprocessed"):
-#     st.write(X_preprocessed)
 
 cv_score = cross_val_score(pipeline, X, Y, cv=folds)
 st.subheader('Results')
@@ -518,13 +456,14 @@ with st.expander('How to use the model you downloaded'):
 
     with row2_1:
         st.write('''Put the classification.model file in your working directory
-                copy paste the code below in your notebook/code and make sure df is in the right format, with the right number of columns.
+                copy paste the code below in your notebook/code and make sure df is in the right format, 
+                with the right number of columns.
             ''')
         st.code('''
-import joblib
-pipeline = joblib.load('classification.model')
-prediction = pipeline.predict(df)
-print(prediction)
+                import joblib
+                pipeline = joblib.load('classification.model')
+                prediction = pipeline.predict(df)
+                print(prediction)
         ''')
 
     with row2_2:
