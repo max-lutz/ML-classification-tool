@@ -120,9 +120,15 @@ def get_scaling(scaler):
         return RobustScaler()
 
 
+def convert_none(object):
+    if (object == 'none' or object == 'None'):
+        return None
+    return object
+
+
 def get_ml_algorithm(algorithm, hyperparameters):
     if algorithm == 'Logistic regression':
-        return LogisticRegression(solver=hyperparameters['solver'])
+        return LogisticRegression(solver=hyperparameters['solver'], penalty=convert_none(hyperparameters['penalty']), C=hyperparameters['C'])
     if algorithm == 'Support vector':
         return SVC(kernel=hyperparameters['kernel'], C=hyperparameters['C'])
     if algorithm == 'K nearest neighbors':
@@ -134,9 +140,11 @@ def get_ml_algorithm(algorithm, hyperparameters):
     if algorithm == 'Random forest':
         return RandomForestClassifier(n_estimators=hyperparameters['n_estimators'], criterion=hyperparameters['criterion'], min_samples_split=hyperparameters['min_samples_split'])
     if algorithm == 'XGBoost':
-        return XGBClassifier()
+        return XGBClassifier(n_estimators=hyperparameters['n_estimators'], max_depth=hyperparameters['max_depth'],
+                             learning_rate=hyperparameters['learning_rate'], booster=hyperparameters['booster'])
     if algorithm == 'LightGBM':
-        return LGBMClassifier()
+        return LGBMClassifier(num_leaves=hyperparameters['num_leaves'], max_depth=hyperparameters['max_depth'],
+                              learning_rate=hyperparameters['learning_rate'])
 
 
 def get_dim_reduc_algo(algorithm, hyperparameters):
@@ -153,7 +161,7 @@ def get_dim_reduc_algo(algorithm, hyperparameters):
 
 
 def get_fold(algorithm, nb_splits):
-    if algorithm == 'Kfold':
+    if algorithm == 'KFold':
         return KFold(n_splits=nb_splits, shuffle=True, random_state=0)
     if algorithm == 'StratifiedKFold':
         return StratifiedKFold(n_splits=nb_splits, shuffle=True, random_state=0)
@@ -354,25 +362,26 @@ else:
     hyperparameters_dim_reduc = {}
 
 st.sidebar.title('Cross validation')
-type = st.sidebar.selectbox('Type', ['KFold', 'StratifiedKFold'])
-nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
+type = st.sidebar.selectbox('Type', ['None', 'KFold', 'StratifiedKFold'])
+nb_splits = 0
+if (type is not 'None'):
+    nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
 folds = get_fold(type, nb_splits)
 
 st.sidebar.title('Model selection')
 classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors',
-                   'Naive bayes', 'Ridge classifier', 'Decision tree', 'Random forest', 'XGBoost', 'LightGBM']
+                   'Ridge classifier', 'Decision tree', 'Random forest', 'XGBoost', 'LightGBM']
 classifier = st.sidebar.selectbox('', classifier_list)
 
 st.sidebar.header('Hyperparameters selection')
 hyperparameters = {}
 if (classifier == 'Logistic regression'):
-    hyperparameters['solver'] = st.sidebar.selectbox('Solver', ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga'])
-    if (hyperparameters['solver'] == 'liblinear'):
-        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2'])
-    if (hyperparameters['solver'] == 'saga'):
-        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l1', 'l2', 'elasticnet'])
+    hyperparameters['solver'] = st.sidebar.selectbox(
+        'Solver (default = lbfgs)', ['lbfgs', 'newton-cg', 'liblinear', 'sag', 'saga'])
+    if (hyperparameters['solver'] == 'liblinear' or hyperparameters['solver'] == 'saga'):
+        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['l1', 'l2'])
     else:
-        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['none', 'l2'])
+        hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['l2'])
     hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
 
 if (classifier == 'Ridge classifier'):
@@ -387,7 +396,7 @@ if (classifier == 'K nearest neighbors'):
     hyperparameters['weights'] = st.sidebar.selectbox('Weights (default = uniform)', ['uniform', 'distance'])
 
 if (classifier == 'Support vector'):
-    hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'linear', 'poly', 'sigmoid'])
+    hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'poly', 'sigmoid'])
     hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
 
 if (classifier == 'Decision tree'):
@@ -401,8 +410,8 @@ if (classifier == 'Random forest'):
 
 if (classifier == 'XGBoost'):
     hyperparameters['booster'] = st.sidebar.selectbox('Algorithm (default = gbtree)', ['gbtree', 'dart', 'gblinear'])
-    hyperparameters['n_estimators'] = st.sidebar.slider('Number of tree (default = 100)', 10, 500, 100, 10)
-    hyperparameters['eta'] = st.sidebar.slider('Learning rate (default = 0.3)', 0.01, 1.0, 0.3, 0.01)
+    hyperparameters['n_estimators'] = st.sidebar.slider('Number of trees (default = 100)', 10, 500, 100, 10)
+    hyperparameters['learning_rate'] = st.sidebar.slider('Learning rate (default = 0.3)', 0.01, 1.0, 0.3, 0.01)
     hyperparameters['max_depth'] = st.sidebar.slider('Maximum depth of trees (default = 6)', 0, 15, 6, 1)
 
 if (classifier == 'LightGBM'):
@@ -432,8 +441,10 @@ else:
 
 cv_score = cross_val_score(pipeline, X, Y, cv=folds)
 st.subheader('Results')
-st.write('Accuracy : ', round(cv_score.mean()*100, 2), '%')
-st.write('Standard deviation : ', round(cv_score.std()*100, 2), '%')
+st.write('Accuracy : ', round(cv_score.mean()*100, 4), '%')
+st.write('Standard deviation : ', round(cv_score.std()*100, 4), '%')
+
+st.text(get_ml_algorithm(classifier, hyperparameters))
 
 
 st.subheader('Download pipeline')
