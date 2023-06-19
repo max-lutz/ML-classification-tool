@@ -10,12 +10,11 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.compose import make_column_transformer
 from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, RidgeClassifier
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import RidgeClassifier
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import KernelPCA, TruncatedSVD
@@ -133,10 +132,10 @@ def get_ml_algorithm(algorithm, hyperparameters):
         return LogisticRegression(solver=hyperparameters['solver'], penalty=convert_none(hyperparameters['penalty']), C=hyperparameters['C'])
     if algorithm == 'Support vector':
         return SVC(kernel=hyperparameters['kernel'], C=hyperparameters['C'])
+    if algorithm == 'Ridge':
+        return RidgeClassifier(alpha=hyperparameters['alpha'], solver=hyperparameters['solver'])
     if algorithm == 'K nearest neighbors':
         return KNeighborsClassifier(n_neighbors=hyperparameters['n_neighbors'], metric=hyperparameters['metric'], weights=hyperparameters['weights'])
-    if algorithm == 'Ridge classifier':
-        return RidgeClassifier(alpha=hyperparameters['alpha'], solver=hyperparameters['solver'])
     if algorithm == 'Decision tree':
         return DecisionTreeClassifier(criterion=hyperparameters['criterion'], min_samples_split=hyperparameters['min_samples_split'])
     if algorithm == 'Random forest':
@@ -232,8 +231,8 @@ with title:
     st.title('Classification exploratory tool')
     st.markdown("""
             This app allows you to test different machine learning algorithms and combinations of preprocessing techniques 
-            to classify passengers from the Titanic dataset!
-            The dataset is composed of passengers from the Titanic and if they survived or not.
+            to solve a classification problem.
+            You can choose among multiple datasets or upload your own.
             * Use the menu on the left to select ML algorithm and hyperparameters
             * The code can be accessed at [code](https://github.com/max-lutz/ML-exploration-tool).
             * Click on how to use this app to get more explanation.
@@ -371,8 +370,8 @@ if (type is not 'None'):
 folds = get_fold(type, nb_splits)
 
 st.sidebar.title('Model selection')
-classifier_list = ['Logistic regression', 'Support vector', 'K nearest neighbors',
-                   'Ridge classifier', 'Decision tree', 'Random forest', 'XGBoost', 'LightGBM']
+classifier_list = ['Logistic regression', 'Support vector', 'Ridge', 'K nearest neighbors',
+                   'Decision tree', 'Random forest', 'XGBoost', 'LightGBM']
 classifier = st.sidebar.selectbox('', classifier_list)
 
 st.sidebar.header('Hyperparameters selection')
@@ -384,9 +383,9 @@ if (classifier == 'Logistic regression'):
         hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['l1', 'l2'])
     else:
         hyperparameters['penalty'] = st.sidebar.selectbox('Penalty (default = l2)', ['l2'])
-    hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
+    hyperparameters['C'] = st.sidebar.slider('C (default = 1.0)', 0.0, 10.0, 1.0, 0.05)
 
-if (classifier == 'Ridge classifier'):
+if (classifier == 'Ridge'):
     hyperparameters['alpha'] = st.sidebar.slider('Alpha (default value = 1.0)', 0.0, 10.0, 1.0, 0.1)
     hyperparameters['solver'] = st.sidebar.selectbox(
         'Solver (default = auto)', ['auto', 'svd', 'cholesky', 'lsqr', 'sparse_cg', 'sag', 'saga'])
@@ -399,7 +398,7 @@ if (classifier == 'K nearest neighbors'):
 
 if (classifier == 'Support vector'):
     hyperparameters['kernel'] = st.sidebar.selectbox('Kernel (default = rbf)', ['rbf', 'poly', 'sigmoid'])
-    hyperparameters['C'] = st.sidebar.selectbox('C (default = 1.0)', [100, 10, 1, 0.1, 0.01])
+    hyperparameters['C'] = st.sidebar.slider('C (default = 1.0)', 0.0, 10.0, 1.0, 0.05)
 
 if (classifier == 'Decision tree'):
     hyperparameters['criterion'] = st.sidebar.selectbox('Criterion (default = gini)', ['gini', 'entropy'])
@@ -451,9 +450,6 @@ cv_score = cross_val_score(pipeline, X, Y, cv=folds)
 st.subheader('Results')
 st.write('Accuracy : ', round(cv_score.mean()*100, 4), '%')
 st.write('Standard deviation : ', round(cv_score.std()*100, 4), '%')
-
-st.text(get_ml_algorithm(classifier, hyperparameters))
-
 
 st.subheader('Download pipeline')
 filename = 'classification.model'
