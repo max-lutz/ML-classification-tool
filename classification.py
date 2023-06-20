@@ -127,6 +127,10 @@ def convert_none(object):
     return object
 
 
+def get_metric_name(metric):
+    return metric.lower()
+
+
 def get_ml_algorithm(algorithm, hyperparameters):
     if algorithm == 'Logistic regression':
         return LogisticRegression(solver=hyperparameters['solver'], penalty=convert_none(hyperparameters['penalty']), C=hyperparameters['C'])
@@ -369,6 +373,9 @@ if (type is not 'None'):
     nb_splits = st.sidebar.slider('Number of splits', min_value=3, max_value=20)
 folds = get_fold(type, nb_splits)
 
+st.sidebar.title('Metric selection')
+metric = st.sidebar.selectbox('', ['Accuracy', 'Recall', 'Precision', 'f1', 'ROC_AUC'])
+
 st.sidebar.title('Model selection')
 classifier_list = ['Logistic regression', 'Support vector', 'Ridge', 'K nearest neighbors',
                    'Decision tree', 'Random forest', 'XGBoost', 'LightGBM']
@@ -446,10 +453,10 @@ if (X_preprocessed.shape[1] < 100 and display_dataframe):
 else:
     st.text(f'Processed dataframe is too big or too sparse to display, shape: {X_preprocessed.shape}')
 
-cv_score = cross_val_score(pipeline, X, Y, cv=folds)
+cv_score = cross_val_score(pipeline, X, Y, cv=folds, scoring=get_metric_name(metric))
 st.subheader('Results')
-st.write('Accuracy : ', round(cv_score.mean()*100, 4), '%')
-st.write('Standard deviation : ', round(cv_score.std()*100, 4), '%')
+st.write(f'Score [{metric}]: {round(abs(cv_score).mean(), 4)}')
+st.write(f'Relative standard deviation : {round(100*abs(cv_score).std()/abs(cv_score).mean(), 4)}%')
 
 st.subheader('Download pipeline')
 filename = 'classification.model'
