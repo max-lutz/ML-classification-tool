@@ -483,7 +483,6 @@ if (df is not None):
                     prediction = pipeline.predict(df)
                     print(prediction)
             ''')
-
         with row2_2:
             st.markdown('**Library versions**')
             import sklearn
