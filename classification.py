@@ -9,7 +9,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.compose import make_column_transformer
-from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score
+from sklearn.model_selection import KFold, StratifiedKFold, cross_val_score, cross_validate, cross_val_predict
 from sklearn.linear_model import LogisticRegression, RidgeClassifier
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
@@ -19,6 +19,8 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.decomposition import KernelPCA, TruncatedSVD
 from sklearn.datasets import load_iris, load_diabetes, load_wine
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 
 import streamlit_download_button as button
 
@@ -127,8 +129,12 @@ def convert_none(object):
     return object
 
 
-def get_metric_name(metric):
-    return metric.lower()
+def get_metric_name(metric, dict_required=False):
+    metric_name = metric.lower()
+    if (dict_required):
+        return {metric_name: metric_name}
+    else:
+        return metric_name
 
 
 def get_ml_algorithm(algorithm, hyperparameters):
@@ -225,6 +231,20 @@ def wrapper_selectbox(label, options, visible=True):
     return st.sidebar.selectbox(label, options)
 
 
+def calculate_test_score(metric_name, y_true, y_pred):
+    if (metric_name == 'accuracy'):
+        score = accuracy_score(y_true=y_true, y_pred=y_pred)
+    elif (metric_name == 'f1'):
+        score = np.sqrt(f1_score(y_true=y_true, y_pred=y_pred))
+    elif (metric_name == 'precision'):
+        score = np.sqrt(precision_score(y_true=y_true, y_pred=y_pred))
+    elif (metric_name == 'recall'):
+        score = np.sqrt(recall_score(y_true=y_true, y_pred=y_pred))
+    elif (metric_name == 'roc_auc'):
+        score = roc_auc_score(y_true=y_true, y_score=y_pred)
+    return score
+
+
 # configuration of the page
 st.set_page_config(layout="wide")
 
@@ -267,6 +287,7 @@ dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease data
 df = load_dataset(dataset)
 
 if (df is not None):
+    df, df_test = train_test_split(df, test_size=0.25, random_state=0)
     st.sidebar.header('Select feature to predict')
     _, cat_cols, _, _, _ = split_columns(df)
     target_list = [x for x in df.columns.to_list() if x in cat_cols]
@@ -275,6 +296,9 @@ if (df is not None):
 
     X = df.drop(columns=target_selected)
     Y = df[target_selected].values.ravel()
+
+    X_test = df_test.drop(columns=target_selected)
+    Y_test = df_test[target_selected].values.ravel()
 
     # Sidebar
     # selection box for the different features
@@ -304,6 +328,7 @@ if (df is not None):
     # combine text columns in one new column because countVectorizer does not accept multiple columns
     text_cols_original = text_cols
     if (len(text_cols) != 0):
+        X_test['text'] = X_test[text_cols].astype(str).agg(' '.join, axis=1)
         X['text'] = X[text_cols].astype(str).agg(' '.join, axis=1)
         for cols in text_cols:
             drop_cols.append(cols)
@@ -454,14 +479,42 @@ if (df is not None):
     else:
         st.text(f'Processed dataframe is too big or too sparse to display, shape: {X_preprocessed.shape}')
 
-    try:
-        cv_score = cross_val_score(pipeline, X, Y, cv=folds, scoring=get_metric_name(metric))
+    # try:
+    #     cv_score = cross_val_score(pipeline, X, Y, cv=folds, scoring=get_metric_name(metric), return_estimator=True)
+    #     st.subheader('Results')
+    #     st.write(f'Score [{metric}]: {round(abs(cv_score[get_metric_name(metric)]).mean(), 4)}')
+
+    # except:
+    #     st.subheader('Results')
+    #     st.write(f'[ERROR] Pipeline cannot make prediction, please check that you are trying to predict the correct column.')
+
+    row2_spacer1, row2_1, row2_spacer2, row2_2, row2_spacer3 = st.columns(
+        (SPACER/10, ROW/2, SPACER, ROW*1.5, SPACER/10))
+    with row2_1:
+        cv_score = cross_validate(pipeline, X, Y, cv=folds, scoring=get_metric_name(metric), return_estimator=True)
         st.subheader('Results')
-        st.write(f'Score [{metric}]: {round(abs(cv_score).mean(), 4)}')
-        st.write(f'Relative standard deviation : {round(100*abs(cv_score).std()/abs(cv_score).mean(), 4)}%')
-    except:
-        st.subheader('Results')
-        st.write(f'[ERROR] Pipeline cannot make prediction, please check that you are trying to predict the correct column.')
+        st.write(f'Score validation [{metric}]: {round(abs(cv_score["test_score"]).mean(), 4)}')
+
+        y_pred_test = cv_score['estimator'][0].predict(X_test)
+        st.write(
+            f'Score test [{metric}]: {round(abs(calculate_test_score(get_metric_name(metric), Y_test, y_pred_test)), 4)}')
+
+    with row2_2:
+        y_pred_val = cross_val_predict(pipeline, X, Y, cv=folds).round(3)
+        st.write('Sampled predictions')
+        df_predictions = pd.DataFrame(np.array([Y, y_pred_val]).T, columns=['Label', 'Prediction'])
+        st.write(df_predictions.head(7).T)
+
+        df_predictions = pd.DataFrame(np.array([Y_test, y_pred_test]).T, columns=['Label', 'Prediction'])
+        st.write(df_predictions.head(7).T)
+    # except:
+    #     with row2_1:
+    #         st.subheader('Results')
+    #         st.write(f'[ERROR] Pipeline cannot make prediction, please check that you are trying to predict the correct column.')
+
+    #     with row2_2:
+    #         st.subheader('Results')
+    #         st.write(f'[ERROR] Pipeline cannot make prediction, please check that you are trying to predict the correct column.')
 
     st.subheader('Download pipeline')
     filename = 'classification.model'
