@@ -479,42 +479,35 @@ if (df is not None):
     else:
         st.text(f'Processed dataframe is too big or too sparse to display, shape: {X_preprocessed.shape}')
 
-    # try:
-    #     cv_score = cross_val_score(pipeline, X, Y, cv=folds, scoring=get_metric_name(metric), return_estimator=True)
-    #     st.subheader('Results')
-    #     st.write(f'Score [{metric}]: {round(abs(cv_score[get_metric_name(metric)]).mean(), 4)}')
-
-    # except:
-    #     st.subheader('Results')
-    #     st.write(f'[ERROR] Pipeline cannot make prediction, please check that you are trying to predict the correct column.')
 
     row2_spacer1, row2_1, row2_spacer2, row2_2, row2_spacer3 = st.columns(
         (SPACER/10, ROW/2, SPACER, ROW*1.5, SPACER/10))
-    with row2_1:
-        cv_score = cross_validate(pipeline, X, Y, cv=folds, scoring=get_metric_name(metric), return_estimator=True)
-        st.subheader('Results')
-        st.write(f'Score validation [{metric}]: {round(abs(cv_score["test_score"]).mean(), 4)}')
+    try:
+        with row2_1:
+            cv_score = cross_validate(pipeline, X, Y, cv=folds, scoring=get_metric_name(metric), return_estimator=True)
+            st.subheader('Results')
+            st.write(f'Score validation [{metric}]: {round(abs(cv_score["test_score"]).mean(), 4)}')
 
-        y_pred_test = cv_score['estimator'][0].predict(X_test)
-        st.write(
-            f'Score test [{metric}]: {round(abs(calculate_test_score(get_metric_name(metric), Y_test, y_pred_test)), 4)}')
+            y_pred_test = cv_score['estimator'][0].predict(X_test)
+            st.write(
+                f'Score test [{metric}]: {round(abs(calculate_test_score(get_metric_name(metric), Y_test, y_pred_test)), 4)}')
+        with row2_2:
+            y_pred_val = cross_val_predict(pipeline, X, Y, cv=folds).round(3)
+            st.write('Sampled predictions')
+            df_predictions = pd.DataFrame(np.array([Y, y_pred_val]).T, columns=['Label', 'Prediction'])
+            st.write(df_predictions.head(7).T)
 
-    with row2_2:
-        y_pred_val = cross_val_predict(pipeline, X, Y, cv=folds).round(3)
-        st.write('Sampled predictions')
-        df_predictions = pd.DataFrame(np.array([Y, y_pred_val]).T, columns=['Label', 'Prediction'])
-        st.write(df_predictions.head(7).T)
+            df_predictions = pd.DataFrame(np.array([Y_test, y_pred_test]).T, columns=['Label', 'Prediction'])
+            st.write(df_predictions.head(7).T)
+        
+    except:
+        with row2_1:
+            st.subheader('Results')
+            st.write(f'[ERROR] Pipeline cannot make prediction, please check that you are trying to predict the correct column.')
+        with row2_2:
+            st.subheader('Results')
+            st.write(f'[ERROR] Pipeline cannot make prediction, please check that you are trying to predict the correct column.')
 
-        df_predictions = pd.DataFrame(np.array([Y_test, y_pred_test]).T, columns=['Label', 'Prediction'])
-        st.write(df_predictions.head(7).T)
-    # except:
-    #     with row2_1:
-    #         st.subheader('Results')
-    #         st.write(f'[ERROR] Pipeline cannot make prediction, please check that you are trying to predict the correct column.')
-
-    #     with row2_2:
-    #         st.subheader('Results')
-    #         st.write(f'[ERROR] Pipeline cannot make prediction, please check that you are trying to predict the correct column.')
 
     st.subheader('Download pipeline')
     filename = 'classification.model'
